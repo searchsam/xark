@@ -1,4 +1,4 @@
-# xark
+# XARK
 Baby shark hunting for device information without supervition.
 
 ## Recursos
