@@ -26,3 +26,16 @@ Datos extraidos de la laptop OX.
 ### Verificar coneccion wifi
 * https://stackoverflow.com/questions/17304225/how-to-detect-if-computer-is-contacted-to-the-internet-with-python
 * https://www.raspberrypi.org/forums/viewtopic.php?t=173157
+
+### Serial number
+
+* https://marc.info/?l=olpc-devel&m=130656581127267&w=2
+* https://marc.info/?l=olpc-devel&m=130654007707791&w=2
+
+### Diario
+
+* http://wiki.laptop.org/go/School_server
+* http://wiki.laptop.org/go/Journal_Activity
+* http://wiki.laptop.org/go/Simplified_user_guide
+
+* https://wiki.sugarlabs.org/go/Sugar_Network
