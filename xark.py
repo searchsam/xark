@@ -8,7 +8,7 @@ Recolector de informacion interno de la XO. Actualmentle solo recolecta:
 '''
 
 import sys
-import requests
+import subprocess
 
 
 def getSerialNumber():
@@ -23,8 +23,17 @@ def getSerialNumber():
 
 if __name__ == '__main__':
     data = getSerialNumber()
-    r = requests.get('http://10.0.11.33:5000/')
-    if r.status_code == 200:
-        n = requests.get('http://10.0.11.33:5000/data/{0}/{1}'.format(data['serialnum'], data['uuid']))
-        print(n.url)
-        print(n.text)
+    code = subprocess.Popen(
+        'curl -o /dev/null -s -w "%{http_code}\n" http://10.0.11.33:5000/',
+        shell=True,
+        stdout=subprocess.PIPE
+    ).stdout.readlines()
+    code = int(code[0].strip())
+    if code == 200:
+        url = 'http://10.0.11.33:5000/data/{0}/{1}'.format(data['serialnum'], data['uuid'])
+        result = subprocess.Popen(
+            'curl -o /dev/null -s -w "%{http_code}\n" ' + url,
+            shell=True,
+            stdout=subprocess.PIPE
+        ).stdout.readlines()
+        print(result[0].strip())
