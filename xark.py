@@ -9,6 +9,8 @@ Recolector de informacion interno de la XO. Actualmentle solo recolecta:
 '''
 
 import sys
+import time
+import sched
 import logging
 import datetime
 import subprocess
@@ -25,8 +27,11 @@ logger.setLevel(logging.DEBUG)
 class Xark():
 
     def __init__(self):
-        self.date = datetime.date.today()
-        self.init = 0
+        # Estado de sincronizacion en `No Sincronizado`
+        self.sync_status = False
+        # Estado de recoleccion en `No Recolectado`
+        self.collec_status = False
+        self.s = sched.scheduler(time.time, time.sleep)
 
     def getSerialNumber(self):
         '''Capturar Numero de serie y UUID'''
@@ -39,17 +44,23 @@ class Xark():
         return data
 
     def collection(self):
-        '''Recolectar informacion'''
-        self.getSerialNumber()
+        '''Funcion para recolectar informacion'''
+        if self.collec_status:
+            # Termina la funcion ya se ha recolectado informacion
+            return self.collec_status
+
+        data = self.getSerialNumber()
+        # Estado de sincronizacion en `Sincronizado`
+        self.collec_status = True
+
+        return data
 
     def synchrome(self, data):
-        '''Funcion principal. Copia un archivo arhivo de una determinada marca
-        y caracterisca a su respectiva tabla, si el copy no es exitoso
-        guarda el nombre del archivo en un archivo JSON.
-
-        Args:
-            COLUMNS (list): Lista de columnas de la tabla.
-        '''
+        '''Funcion para sincronizar con el charco.'''
+        if self.sync_status:
+            # Termina la funcion si ya se a sincronizacion con el charco
+            return self.sync_status
+        # Verifica si el IIAB esta disponible
         code = subprocess.Popen(
             'curl -o /dev/null -s -w "%{http_code}\n" http://10.0.11.33:5000/',
             shell=True,
@@ -64,6 +75,14 @@ class Xark():
                 stdout=subprocess.PIPE
             ).stdout.readlines()
             print(result[0].strip())
+            result = int(result[0].strip())
+            if code == 200:
+                # Estado de sincronizacion en `Sincronizado`
+                self.sync_status = True
+                return self.sync_status
+            else:
+                self.s.enter(3600, 1, self.synchrome, ())
+                self.s.run()
 
 
 if __name__ == '__main__':
@@ -72,17 +91,17 @@ if __name__ == '__main__':
         logger.info('Inicio de dia {}'.format(datetime.datetime.now()))
         # Instancia del Kaibil
         xark = Xark()
-        # Ciclo infinito
-        while True:
-            # Verifica si el dia de la semana es entre lunes y viernes
-            if datetime.datetime.now().weekday() > 1 and datetime.datetime.now().weekday() < 5:
-                # Verifica que la hora del dia sea entre las 6:00 y las 18:00
-                if datetime.datetime.now().time() > datetime.time(6, 0) and datetime.datetime.now().time() < datetime.time(18, 0):
-                    # Recolectar informacion
-                    xark.collection()
-                    xark.synchrome()
-            else:
-                exit(1)
-    except() as e:
-        logger.error('{}'.format(e))
+
+        # Verifica si el dia de la semana es entre lunes y viernes
+        if datetime.datetime.now().weekday() > 1 and datetime.datetime.now().weekday() < 5:
+            # Verifica que la hora del dia sea entre las 6:00 y las 18:00
+            if datetime.datetime.now().time() > datetime.time(6, 0) and datetime.datetime.now().time() < datetime.time(18, 0):
+                # Recolectar informacion
+                data = xark.collection()
+                # sincronizar con el charco
+                xark.synchrome(data)
+        else:
+            exit("Fin de la ejecucion")
+    except Exception():
+        logger.error('')
         sys.exit(0)
