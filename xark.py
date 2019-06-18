@@ -103,5 +103,5 @@ if __name__ == '__main__':
         else:
             exit("Fin de la ejecucion")
     except Exception():
-        logger.error('')
+        logger.error('Unexpected error: ' + sys.exc_info()[0])
         sys.exit(0)
