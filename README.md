@@ -1,10 +1,10 @@
 # XARK
-Baby shark hunting for device information without supervition.
+Baby shark hunting for device information without supervision.
 
 ## Datos
-Datos extraidos de la laptop OX.
+Datos extraídos de la laptop OX.
 
-* Numero de serie.
+* Número de serie
 * RAM
 * ROM
 * Procesador
@@ -17,7 +17,7 @@ Datos extraidos de la laptop OX.
 
 ## Recursos
 
-### Autenticacion
+### Autenticación
 
 #### School Identity Manager
 
@@ -28,7 +28,7 @@ Otros recursos:
 * https://stackoverflow.com/questions/16521486/tutorial-for-using-requests-oauth2
 * https://www.digitalocean.com/community/tutorials/una-introduccion-a-oauth-2-es
 
-### Verificar coneccion wifi
+### Verificar conexión Wi-Fi
 * https://stackoverflow.com/questions/17304225/how-to-detect-if-computer-is-contacted-to-the-internet-with-python
 * https://www.raspberrypi.org/forums/viewtopic.php?t=173157
 
