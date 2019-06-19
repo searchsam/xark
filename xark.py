@@ -27,7 +27,6 @@ logger.setLevel(logging.DEBUG)
 
 
 class Conexion:
-
     def __init__(self):
         self.conn = sqlite3.connect('main.db')
         self.c = self.conn.cursor()
@@ -78,7 +77,7 @@ class Xark():
         try:
             self.db.set(
                 'INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)',
-                [(data['serialnum'], data['uuid'])],
+                [(data['serialnum']), (data['uuid'])],
             )
         except sqlite3.IntegrityError as e:
             print(e)
@@ -92,19 +91,19 @@ class Xark():
         )
         if not response[0]:
             # Termina la funcion ya se ha recolectado informacion
-            data = self.getSerialNumber()
-            self.db.set(
-                'INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)',
-                [(data['serialnum']), (data['uuid'])]
-            )
+            return bool(response[0])
 
-            # Estado de sincronizacion en `Sincronizado`
-            self.db.set(
-                'UPDATE xark_status set collect_status = ?, collect_date = ? WHERE date_print = ?',
-                [(True), (datetime.datetime.now()), (self.day)]
-            )
+        data = self.getSerialNumber()
+        self.db.set(
+            'INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)',
+            [(data['serialnum']), (data['uuid'])]
+        )
 
-            return True
+        # Estado de sincronizacion en `Sincronizado`
+        self.db.set(
+            'UPDATE xark_status set collect_status = ?, collect_date = ? WHERE date_print = ?',
+            [(True), (datetime.datetime.now()), (self.day)]
+        )
 
     def synchrome(self):
         print('synchronize')
@@ -115,7 +114,8 @@ class Xark():
         )
         if not response[0]:
             # Termina la funcion si ya se a sincronizacion con el charco
-            return response
+            return bool(response[0])
+
         # Verifica si el IIAB esta disponible
         code = subprocess.Popen(
             'curl -o /dev/null -s -w "%{http_code}\n" http://10.0.11.33:5000/',
@@ -135,11 +135,11 @@ class Xark():
             if code == 200:
                 self.db.set(
                     'UPDATE xark_status set sync_status = ?, sync_date = ? WHERE date_print = ?',
-                    [(True, datetime.datetime.now(), self.day)]
+                    [(True), (datetime.datetime.now()), (self.day)]
                 )
                 return True
         else:
-            self.s.enter(3600, 1, self.synchrome, ())
+            self.s.enter(10, 1, self.synchrome, ())
             self.s.run()
 
 
