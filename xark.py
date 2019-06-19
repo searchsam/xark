@@ -31,8 +31,8 @@ class conexion():
         self.conn = sqlite3.connect('main.db')
         self.c = self.conn.cursor()
 
-    def get(self, query):
-        return self.c.execute(query).fetchone()
+    def get(self, query, data):
+        return self.c.execute(query, data).fetchone()
         self.c.close()
         self.conn.close()
 
@@ -45,9 +45,13 @@ class conexion():
 class Xark(conexion):
     def __init__(self):
         self.db = conexion()
+
+        #Fecha actual en entero
+        a = int(dt.datetime.now().strftime('%Y%m%d'))
         # Estado de sincronizacion en `No Sincronizado`
         # self.sync_status = False
-        query = self.db.get("SELECT sync_status, collect_status FROM xark_status WHERE create_at={0}".format(dt.datetime.now().date()))
+        query = self.db.get("SELECT sync_status, collect_status FROM xark_status WHERE create_at=?", [(a)])
+        print(query)
 
         try:
             self.sync_status = query[0]
@@ -78,13 +82,13 @@ class Xark(conexion):
 
     def collection(self):
         '''Funcion para recolectar informacion'''
-        if self.collec_status:
+        data = None
+        if not self.collec_status:
+            print("entrando")
             # Termina la funcion ya se ha recolectado informacion
+            data = self.getSerialNumber()
             return self.collec_status
-
-        print("recolecta")
-        data = self.getSerialNumber()
-        # Estado de sincronizacion en `Sincronizado`
+            # Estado de sincronizacion en `Sincronizado`
 
         self.collec_status = True
         return data
@@ -126,11 +130,11 @@ if __name__ == '__main__':
     # Log de inicio diario
     logger.info('Inicio de dia {}'.format(dt.datetime.now()))
     # Contexto paralelo para multiprocesos.
-    context = multiprocessing.get_context('spawn')
+    # context = multiprocessing.get_context('spawn')
     # Cola de salida de cada proceso.
-    queue = context.Queue()
+    # queue = context.Queue()
     # Lista de multiprocesos
-    processes = list()
+    # processes = list()
     try:
         # Instancia del Kaibil
         xark = Xark()
