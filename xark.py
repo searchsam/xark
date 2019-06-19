@@ -33,14 +33,14 @@ class Conexion:
 
     def get(self, query, data):
         return self.c.execute(query, data).fetchone()
-        self.c.close()
-        self.conn.close()
+        # self.c.close()
+        # self.conn.close()
 
     def set(self, query, data):
         self.c.execute(query, data)
         self.conn.commit()
-        self.c.close()
-        self.conn.close()
+        # self.c.close()
+        # self.conn.close()
 
 
 class Xark():
@@ -51,16 +51,15 @@ class Xark():
         self.day = int(datetime.datetime.now().strftime('%Y%m%d'))
         # Verificar estado diario del kaibil
         response = self.db.get(
-            'SELECT * FROM xark_status WHERE date_print=?',
+            'SELECT * FROM xark_status WHERE date_print = ?',
             [(self.day)]
         )
-        print(response)
         if response is None:
             self.db.set(
-                'INSERT INTO xark_status(date_print)VALUES(?)',
+                'INSERT INTO xark_status(date_print) VALUES(?)',
                 [(self.day)]
             )
-        # self.collec_status = False
+        # Programador de frecuencia de peticiones
         self.s = sched.scheduler(time.time, time.sleep)
 
     def getSerialNumber(self):
@@ -74,43 +73,50 @@ class Xark():
                     value[3].split('=')[1].replace('"', '')
                 )
 
+        return data
         try:
             self.db.set(
-                'INSERT INTO data_xo(serial, uuid, create_at, update_at)VALUES(?,?,?,?)',
-                [
-                    (
-                        data['serialnum'],
-                        data['uuid'],
-                        datetime.datetime.now(),
-                        datetime.datetime.now(),
-                    )
-                ],
+                'INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)',
+                [(data['serialnum']), (data['uuid'])],
             )
         except sqlite3.IntegrityError as e:
             print(e)
 
-        return data
-
     def collection(self):
+        print('collection')
         '''Funcion para recolectar informacion'''
-        data = None
-        if not self.collec_status:
-            print("entrando")
+        response = self.db.get(
+            'SELECT collect_status FROM xark_status WHERE date_print = ?',
+            [(self.day)]
+        )
+        if response[0]:
             # Termina la funcion ya se ha recolectado informacion
-            data = self.getSerialNumber()
-            # Estado de sincronizacion en `Sincronizado`
-            self.collec_status = True
-            return self.collec_status
+            return bool(response[0])
 
-        return data
+        data = self.getSerialNumber()
+        self.db.set(
+            'INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)',
+            [(data['serialnum']), (data['uuid'])]
+        )
 
-    def synchrome(self, data):
+        # Estado de sincronizacion en `Sincronizado`
+        self.db.set(
+            'UPDATE xark_status set collect_status = ?, collect_date = ? WHERE date_print = ?',
+            [(True), (datetime.datetime.now()), (self.day)]
+        )
+
+    def synchrome(self):
+        print('synchronize')
         '''Funcion para sincronizar con el charco.'''
-        if self.sync_status:
+        response = self.db.get(
+            'SELECT sync_status FROM xark_status WHERE date_print=?',
+            [(self.day)]
+        )
+        if response[0]:
             # Termina la funcion si ya se a sincronizacion con el charco
-            return self.sync_status
+            return bool(response[0])
+
         # Verifica si el IIAB esta disponible
-        print('Verificacion a : {}'.format(datetime.datetime.now()))
         code = subprocess.Popen(
             'curl -o /dev/null -s -w "%{http_code}\n" http://10.0.11.33:5000/',
             shell=True,
@@ -119,24 +125,22 @@ class Xark():
         code = int(code[0].strip())
 
         if code == 200:
-            url = 'http://127.0.0.1:5000/data/{0}/{1}'.format(
-                data['serialnum'], data['uuid']
-            )
+            url = 'http://10.0.11.33:5000/'
             result = subprocess.Popen(
                 'curl -o /dev/null -s -w "%{http_code}\n" ' + url,
                 shell=True,
                 stdout=subprocess.PIPE,
             ).stdout.readlines()
-
-            print(result[0].strip())
             result = int(result[0].strip())
             if code == 200:
-                # Estado de sincronizacion en `Sincronizado`
-                self.sync_status = True
-                return self.sync_status
-            else:
-                self.s.enter(3600, 1, self.synchrome, ())
-                self.s.run()
+                self.db.set(
+                    'UPDATE xark_status set sync_status = ?, sync_date = ? WHERE date_print = ?',
+                    [(True), (datetime.datetime.now()), (self.day)]
+                )
+                return True
+        else:
+            self.s.enter(10, 1, self.synchrome, ())
+            self.s.run()
 
 
 if __name__ == '__main__':
@@ -154,18 +158,16 @@ if __name__ == '__main__':
             and datetime.datetime.now().weekday() <= 5
         ):
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
-            if datetime.datetime.now().time() >= datetime.time(
-                6, 0
-            ) and datetime.datetime.now().time() <= datetime.time(18, 0):
+            if (
+                datetime.datetime.now().time() >= datetime.time(6, 0)
+                and datetime.datetime.now().time() <= datetime.time(18, 0)
+            ):
                 # Recolectar informacion
-                processes.append(multiprocessing.Process(target=xark.collection, args=()))
+                multiprocessing.Process(target=xark.collection, args=()).start()
                 # Sincronizar con el charco
-                processes.append(multiprocessing.Process(target=xark.synchrome, args=()))
-                # Inicia los procesos.
-                for process in processes:
-                    process.start()
-                for process in processes:
-                    process.join()
+                multiprocessing.Process(target=xark.synchrome, args=()).start()
+
+                # close connection
         else:
             exit('Fin de la ejecucion')
     except Exception():
