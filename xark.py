@@ -26,6 +26,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
+
 class conexion():
     def __init__(self):
         self.conn = sqlite3.connect('main.db')
@@ -42,18 +43,20 @@ class conexion():
         self.c.close()
         self.conn.close()
 
+
 class Xark(conexion):
+
     def __init__(self):
         self.db = conexion()
         # Estado de sincronizacion en `No Sincronizado`
         # self.sync_status = False
-        query = self.db.get("SELECT sync_status, collect_status FROM xark_status WHERE create_at={0}".format(dt.datetime.now().date()))
+        query = self.db.get('SELECT sync_status, collect_status FROM xark_status WHERE create_at={0}'.format(dt.datetime.now().date()))
 
         try:
             self.sync_status = query[0]
             # Estado de recoleccion en `No Recolectado`
             self.collec_status = query[1]
-        except:
+        except():
             self.sync_status = False
             # Estado de recoleccion en `No Recolectado`
             self.collec_status = False
@@ -70,7 +73,7 @@ class Xark(conexion):
                 data[value[2].split('=')[1].replace('"', '')] = value[3].split('=')[1].replace('"', '')
 
         try:
-            self.db.set("INSERT INTO data_xo(serial, uuid, create_at, update_at)VALUES(?,?,?,?)", [(data['serialnum'], data['uuid'], dt.datetime.now(), dt.datetime.now())])
+            self.db.set('INSERT INTO data_xo(serial, uuid, create_at, update_at)VALUES(?,?,?,?)', [(data['serialnum'], data['uuid'], dt.datetime.now(), dt.datetime.now())])
         except sqlite3.IntegrityError as e:
             print(e)
 
@@ -139,19 +142,15 @@ if __name__ == '__main__':
         if dt.datetime.now().weekday() >= 1 and dt.datetime.now().weekday() <= 5:
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
             if dt.datetime.now().time() >= dt.time(6, 0) and dt.datetime.now().time() <= dt.time(18, 0):
-                # Recolectar informacion
-                # processes.append(context.Process(target=xark.collection, args=()))
-                # sincronizar con el charco
-                # processes.append(context.Process(target=xark.synchrome, args=()))
-                # # Inicia los procesos.
-                # for process in processes:
-                #     process.start()
-                # for process in processes:
-                #     process.join()
-                # Recolectar informacion
-                data = xark.collection()
-                # sincronizar con el charco
-                xark.synchrome(data)
+                Recolectar informacion
+                processes.append(context.Process(target=xark.collection, args=()))
+                sincronizar con el charco
+                processes.append(context.Process(target=xark.synchrome, args=()))
+                # Inicia los procesos.
+                for process in processes:
+                    process.start()
+                for process in processes:
+                    process.join()
         else:
             exit('Fin de la ejecucion')
     except Exception():
