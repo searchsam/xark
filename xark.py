@@ -15,6 +15,8 @@ import logging
 import datetime as dt
 import subprocess
 import sqlite3
+import multiprocessing
+
 
 # Logging setting
 logger = logging.getLogger('xark')
@@ -45,7 +47,7 @@ class Xark(conexion):
         self.db = conexion()
         # Estado de sincronizacion en `No Sincronizado`
         # self.sync_status = False
-        # query = self.db.get("SELECT sync_status, collect_status FROM xark_status WHERE create_at={0}".format(dt.datetime.now().date()))
+        query = self.db.get("SELECT sync_status, collect_status FROM xark_status WHERE create_at={0}".format(dt.datetime.now().date()))
 
         try:
             self.sync_status = query[0]
@@ -66,7 +68,6 @@ class Xark(conexion):
             if 'serialnum' in value or 'uuid' in value:
                 value = value.strip().split(' ')
                 data[value[2].split('=')[1].replace('"', '')] = value[3].split('=')[1].replace('"', '')
-        print(data)
 
         try:
             self.db.set("INSERT INTO data_xo(serial, uuid, create_at, update_at)VALUES(?,?,?,?)", [(data['serialnum'], data['uuid'], dt.datetime.now(), dt.datetime.now())])
@@ -94,6 +95,7 @@ class Xark(conexion):
             # Termina la funcion si ya se a sincronizacion con el charco
             return self.sync_status
         # Verifica si el IIAB esta disponible
+        print('Verificacion a : {}'.format(dt.datetime.now()))
         code = subprocess.Popen(
             'curl -o /dev/null -s -w "%{http_code}\n" http://10.0.11.33:5000/',
             shell=True,
@@ -121,9 +123,15 @@ class Xark(conexion):
 
 
 if __name__ == '__main__':
+    # Log de inicio diario
+    logger.info('Inicio de dia {}'.format(dt.datetime.now()))
+    # Contexto paralelo para multiprocesos.
+    context = multiprocessing.get_context('spawn')
+    # Cola de salida de cada proceso.
+    queue = context.Queue()
+    # Lista de multiprocesos
+    processes = list()
     try:
-        # Log de inicio diario
-        logger.info('Inicio de dia {}'.format(dt.datetime.now()))
         # Instancia del Kaibil
         xark = Xark()
 
@@ -132,11 +140,20 @@ if __name__ == '__main__':
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
             if dt.datetime.now().time() >= dt.time(6, 0) and dt.datetime.now().time() <= dt.time(18, 0):
                 # Recolectar informacion
+                # processes.append(context.Process(target=xark.collection, args=()))
+                # sincronizar con el charco
+                # processes.append(context.Process(target=xark.synchrome, args=()))
+                # # Inicia los procesos.
+                # for process in processes:
+                #     process.start()
+                # for process in processes:
+                #     process.join()
+                # Recolectar informacion
                 data = xark.collection()
                 # sincronizar con el charco
                 xark.synchrome(data)
         else:
-            exit("Fin de la ejecucion")
+            exit('Fin de la ejecucion')
     except Exception():
         logger.error('Unexpected error: ' + sys.exc_info()[0])
         sys.exit(0)
