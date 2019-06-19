@@ -90,7 +90,7 @@ class Xark():
             'SELECT collect_status FROM xark_status WHERE date_print = ?',
             [(self.day)]
         )
-        if response[0]:
+        if not response[0]:
             # Termina la funcion ya se ha recolectado informacion
             data = self.getSerialNumber()
             self.db.set(
@@ -113,7 +113,7 @@ class Xark():
             'SELECT sync_status FROM xark_status WHERE date_print=?',
             [(self.day)]
         )
-        if response[0]:
+        if not response[0]:
             # Termina la funcion si ya se a sincronizacion con el charco
             return response
         # Verifica si el IIAB esta disponible
