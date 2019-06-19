@@ -146,18 +146,14 @@ if __name__ == '__main__':
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
             if dt.datetime.now().time() >= dt.time(6, 0) and dt.datetime.now().time() <= dt.time(18, 0):
                 # Recolectar informacion
-                # processes.append(context.Process(target=xark.collection, args=()))
-                # sincronizar con el charco
-                # processes.append(context.Process(target=xark.synchrome, args=()))
-                # # Inicia los procesos.
-                # for process in processes:
-                #     process.start()
-                # for process in processes:
-                #     process.join()Q
-                # Recolectar informacion
-                data = xark.collection()
-                # sincronizar con el charco
-                xark.synchrome(data)
+                processes.append(context.Process(target=xark.collection, args=()))
+                # Sincronizar con el charco
+                processes.append(context.Process(target=xark.synchrome, args=()))
+                # Inicia los procesos.
+                for process in processes:
+                    process.start()
+                for process in processes:
+                    process.join()
         else:
             exit('Fin de la ejecucion')
     except Exception():
