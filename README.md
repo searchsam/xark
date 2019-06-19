@@ -1,19 +1,19 @@
 # XARK
-Baby shark hunting for device information without supervision.
+Baby SAHRK hunting for device information without supervision.
 
-## Datos
-Datos extraídos de la laptop OX.
+## Data
+Data extracted from the OX laptop.
 
-* Número de serie
+* Serial number
 * RAM
 * ROM
-* Procesador
-* Arquitectura
-* Actividades instaladas
-* Georeferencia
+* Processor
+* Architecture
+* Installed activities
+* Georeference
 * MAC
-* Diario
-* Logs de actividades
+* Journal
+* Activity logs
 
 ## Recursos
 

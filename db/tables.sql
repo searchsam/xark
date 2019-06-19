@@ -9,7 +9,7 @@ CREATE TABLE xark_status(
 
 CREATE TABLE data_xo(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	serial VARCHAR,
+	serial_num VARCHAR,
 	uuid VARCHAR,
 	create_at DATETIME,
 	update_at DATETIME
