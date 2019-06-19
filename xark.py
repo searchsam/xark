@@ -17,7 +17,6 @@ import datetime
 import subprocess
 import multiprocessing
 
-
 # Logging setting
 logger = logging.getLogger('xark')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)-s - %(message)s')
@@ -27,13 +26,14 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 
-class conexion:
+class Conexion:
+
     def __init__(self):
         self.conn = sqlite3.connect('main.db')
         self.c = self.conn.cursor()
 
-    def get(self, query):
-        return self.c.execute(query).fetchone()
+    def get(self, query, data):
+        return self.c.execute(query, data).fetchone()
         self.c.close()
         self.conn.close()
 
@@ -44,16 +44,19 @@ class conexion:
         self.conn.close()
 
 
-class Xark(conexion):
+class Xark():
+
     def __init__(self):
-        self.db = conexion()
+        self.db = Conexion()
+        # Fecha actual en entero
+        day = int(datetime.datetime.now().strftime('%Y%m%d'))
         # Estado de sincronizacion en `No Sincronizado`
         # self.sync_status = False
         query = self.db.get(
-            'SELECT sync_status, collect_status FROM xark_status WHERE create_at={0}'.format(
-                datetime.datetime.now().date()
-            )
+            'SELECT sync_status, collect_status FROM xark_status WHERE create_at=?',
+            [(day)]
         )
+        print(query)
 
         try:
             self.sync_status = query[0]
@@ -63,6 +66,9 @@ class Xark(conexion):
             self.sync_status = False
             # Estado de recoleccion en `No Recolectado`
             self.collec_status = False
+
+            self.db.set("INSERT INTO xark_status(create_at, sync_status, collect_status, sync_date, collect_date)VALUES(?,?,?,?,?)",
+                        [(day, False, False, datetime.datetime.now(), datetime.datetime.now())])
         # self.collec_status = False
         self.s = sched.scheduler(time.time, time.sleep)
 
@@ -96,15 +102,15 @@ class Xark(conexion):
 
     def collection(self):
         '''Funcion para recolectar informacion'''
-        if self.collec_status:
+        data = None
+        if not self.collec_status:
+            print("entrando")
             # Termina la funcion ya se ha recolectado informacion
+            data = self.getSerialNumber()
+            # Estado de sincronizacion en `Sincronizado`
+            self.collec_status = True
             return self.collec_status
 
-        print('recolecta')
-        data = self.getSerialNumber()
-        # Estado de sincronizacion en `Sincronizado`
-
-        self.collec_status = True
         return data
 
     def synchrome(self, data):
