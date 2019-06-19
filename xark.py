@@ -49,26 +49,18 @@ class Xark():
     def __init__(self):
         self.db = Conexion()
         # Fecha actual en entero
-        day = int(datetime.datetime.now().strftime('%Y%m%d'))
-        # Estado de sincronizacion en `No Sincronizado`
-        # self.sync_status = False
-        query = self.db.get(
-            'SELECT sync_status, collect_status FROM xark_status WHERE create_at=?',
-            [(day)]
+        self.day = int(datetime.datetime.now().strftime('%Y%m%d'))
+        # Verificar estado diario del kaibil
+        response = self.db.get(
+            'SELECT * FROM xark_status WHERE date_print=?',
+            [(self.day)]
         )
-        print(query)
-
-        try:
-            self.sync_status = query[0]
-            # Estado de recoleccion en `No Recolectado`
-            self.collec_status = query[1]
-        except ():
-            self.sync_status = False
-            # Estado de recoleccion en `No Recolectado`
-            self.collec_status = False
-
-            self.db.set("INSERT INTO xark_status(create_at, sync_status, collect_status, sync_date, collect_date)VALUES(?,?,?,?,?)",
-                        [(day, False, False, datetime.datetime.now(), datetime.datetime.now())])
+        print(response)
+        if response is None:
+            self.db.set(
+                'INSERT INTO xark_status(date_print)VALUES(?)',
+                [(self.day)]
+            )
         # self.collec_status = False
         self.s = sched.scheduler(time.time, time.sleep)
 
