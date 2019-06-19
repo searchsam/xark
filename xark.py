@@ -27,7 +27,6 @@ logger.setLevel(logging.DEBUG)
 
 
 class Conexion:
-
     def __init__(self):
         self.conn = sqlite3.connect('main.db')
         self.c = self.conn.cursor()
@@ -38,7 +37,7 @@ class Conexion:
         self.conn.close()
 
     def set(self, query, data):
-        self.c.executemany(query, data)
+        self.c.execute(query, data)
         self.conn.commit()
         self.c.close()
         self.conn.close()
@@ -49,30 +48,18 @@ class Xark():
     def __init__(self):
         self.db = Conexion()
         # Fecha actual en entero
-        day = int(datetime.datetime.now().strftime('%Y%m%d'))
-        # Estado de sincronizacion en `No Sincronizado`
-        # self.sync_status = False
-
-        #Consulta si existe el registro de hoy
-        query = self.db.get(
-            'SELECT sync_status, collect_status FROM xark_status WHERE create_at=?',
-            [(day)]
+        self.day = int(datetime.datetime.now().strftime('%Y%m%d'))
+        # Verificar estado diario del kaibil
+        response = self.db.get(
+            'SELECT * FROM xark_status WHERE date_print=?',
+            [(self.day)]
         )
-        print(query)
-
-        try:
-            self.sync_status = query[0]
-            # Estado de recoleccion en `No Recolectado`
-            self.collec_status = query[1]
-        except ():
-            self.sync_status = False
-            # Estado de recoleccion en `No Recolectado`
-            self.collec_status = False
-
-            #Si el registro no existe, lo crea.
-            self.db.set("INSERT INTO xark_status(create_at, sync_status, collect_status, sync_date, collect_date)VALUES(?,?,?,?,?)",
-                        [(day, False, False, datetime.datetime.now(), datetime.datetime.now())])
-
+        print(response)
+        if response is None:
+            self.db.set(
+                'INSERT INTO xark_status(date_print)VALUES(?)',
+                [(self.day)]
+            )
         # self.collec_status = False
         self.s = sched.scheduler(time.time, time.sleep)
 
@@ -132,7 +119,7 @@ class Xark():
         code = int(code[0].strip())
 
         if code == 200:
-            url = 'http://10.0.11.33:5000/data/{0}/{1}'.format(
+            url = 'http://127.0.0.1:5000/data/{0}/{1}'.format(
                 data['serialnum'], data['uuid']
             )
             result = subprocess.Popen(
