@@ -45,12 +45,11 @@ class conexion():
 class Xark(conexion):
     def __init__(self):
         self.db = conexion()
-
         #Fecha actual en entero
-        a = int(dt.datetime.now().strftime('%Y%m%d'))
+        day = int(dt.datetime.now().strftime('%Y%m%d'))
         # Estado de sincronizacion en `No Sincronizado`
         # self.sync_status = False
-        query = self.db.get("SELECT sync_status, collect_status FROM xark_status WHERE create_at=?", [(a)])
+        query = self.db.get("SELECT sync_status, collect_status FROM xark_status WHERE create_at=?", [(day)])
         print(query)
 
         try:
@@ -61,6 +60,9 @@ class Xark(conexion):
             self.sync_status = False
             # Estado de recoleccion en `No Recolectado`
             self.collec_status = False
+
+            self.db.set("INSERT INTO xark_status(create_at, sync_status, collect_status, sync_date, collect_date)VALUES(?,?,?,?,?)",
+                        [(day, False, False, dt.datetime.now(), dt.datetime.now())])
         # self.collec_status = False
         self.s = sched.scheduler(time.time, time.sleep)
 
@@ -87,10 +89,10 @@ class Xark(conexion):
             print("entrando")
             # Termina la funcion ya se ha recolectado informacion
             data = self.getSerialNumber()
-            return self.collec_status
             # Estado de sincronizacion en `Sincronizado`
+            self.collec_status = True
+            return self.collec_status
 
-        self.collec_status = True
         return data
 
     def synchrome(self, data):
@@ -151,7 +153,7 @@ if __name__ == '__main__':
                 # for process in processes:
                 #     process.start()
                 # for process in processes:
-                #     process.join()
+                #     process.join()Q
                 # Recolectar informacion
                 data = xark.collection()
                 # sincronizar con el charco
