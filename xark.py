@@ -151,10 +151,6 @@ class Xark():
 if __name__ == '__main__':
     # Log de inicio diario
     logger.info('Inicio de dia {}'.format(datetime.datetime.now()))
-    # Contexto paralelo para multiprocesos.
-    context = multiprocessing.get_context('spawn')
-    # Cola de salida de cada proceso.
-    queue = context.Queue()
     # Lista de multiprocesos
     processes = list()
     try:
@@ -171,9 +167,9 @@ if __name__ == '__main__':
                 6, 0
             ) and datetime.datetime.now().time() <= datetime.time(18, 0):
                 # Recolectar informacion
-                processes.append(context.Process(target=xark.collection, args=()))
+                processes.append(multiprocessing.Process(target=xark.collection, args=()))
                 # Sincronizar con el charco
-                processes.append(context.Process(target=xark.synchrome, args=()))
+                processes.append(multiprocessing.Process(target=xark.synchrome, args=()))
                 # Inicia los procesos.
                 for process in processes:
                     process.start()
