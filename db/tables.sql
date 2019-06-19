@@ -1,16 +1,18 @@
 CREATE TABLE xark_status(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	create_at INTEGER,
-	sync_status BOOLEAN,
-	collect_status BOOLEAN,
+	date_print INTEGER NOT NULL,
+	sync_status BOOLEAN DEFAULT FALSE,
+	collect_status BOOLEAN DEFAULT FALSE,
 	sync_date DATETIME,
-	collect_date DATETIME
+	collect_date DATETIME,
+	create_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	update_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE data_xo(
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	serial_num VARCHAR,
-	uuid VARCHAR,
-	create_at DATETIME,
-	update_at DATETIME
+	serial_num VARCHAR NOT NULL,
+	uuid VARCHAR NOT NULL,
+	create_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	update_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
