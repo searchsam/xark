@@ -52,6 +52,8 @@ class Xark():
         day = int(datetime.datetime.now().strftime('%Y%m%d'))
         # Estado de sincronizacion en `No Sincronizado`
         # self.sync_status = False
+
+        #Consulta si existe el registro de hoy
         query = self.db.get(
             'SELECT sync_status, collect_status FROM xark_status WHERE create_at=?',
             [(day)]
@@ -67,8 +69,10 @@ class Xark():
             # Estado de recoleccion en `No Recolectado`
             self.collec_status = False
 
+            #Si el registro no existe, lo crea.
             self.db.set("INSERT INTO xark_status(create_at, sync_status, collect_status, sync_date, collect_date)VALUES(?,?,?,?,?)",
                         [(day, False, False, datetime.datetime.now(), datetime.datetime.now())])
+
         # self.collec_status = False
         self.s = sched.scheduler(time.time, time.sleep)
 
