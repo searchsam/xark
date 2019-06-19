@@ -33,18 +33,17 @@ class Conexion:
 
     def get(self, query, data):
         return self.c.execute(query, data).fetchone()
-        # self.c.close()
-        # self.conn.close()
 
     def set(self, query, data):
         self.c.execute(query, data)
         self.conn.commit()
-        # self.c.close()
-        # self.conn.close()
+
+    def close(self):
+        self.c.close()
+        self.conn.close()
 
 
-class Xark():
-
+class Xark:
     def __init__(self):
         self.db = Conexion()
         # Fecha actual en entero
@@ -74,16 +73,8 @@ class Xark():
                 )
 
         return data
-        try:
-            self.db.set(
-                'INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)',
-                [(data['serialnum']), (data['uuid'])],
-            )
-        except sqlite3.IntegrityError as e:
-            print(e)
 
     def collection(self):
-        print('collection')
         '''Funcion para recolectar informacion'''
         response = self.db.get(
             'SELECT collect_status FROM xark_status WHERE date_print = ?',
@@ -96,17 +87,16 @@ class Xark():
         data = self.getSerialNumber()
         self.db.set(
             'INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)',
-            [(data['serialnum']), (data['uuid'])]
+            [(data['serialnum']), (data['uuid'])],
         )
 
         # Estado de sincronizacion en `Sincronizado`
         self.db.set(
             'UPDATE xark_status set collect_status = ?, collect_date = ? WHERE date_print = ?',
-            [(True), (datetime.datetime.now()), (self.day)]
+            [(True), (datetime.datetime.now()), (self.day)],
         )
 
     def synchrome(self):
-        print('synchronize')
         '''Funcion para sincronizar con el charco.'''
         response = self.db.get(
             'SELECT sync_status FROM xark_status WHERE date_print=?',
@@ -135,7 +125,7 @@ class Xark():
             if code == 200:
                 self.db.set(
                     'UPDATE xark_status set sync_status = ?, sync_date = ? WHERE date_print = ?',
-                    [(True), (datetime.datetime.now()), (self.day)]
+                    [(True), (datetime.datetime.now()), (self.day)],
                 )
                 return True
         else:
@@ -158,16 +148,16 @@ if __name__ == '__main__':
             and datetime.datetime.now().weekday() <= 5
         ):
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
-            if (
-                datetime.datetime.now().time() >= datetime.time(6, 0)
-                and datetime.datetime.now().time() <= datetime.time(18, 0)
-            ):
+            if datetime.datetime.now().time() >= datetime.time(
+                6, 0
+            ) and datetime.datetime.now().time() <= datetime.time(18, 0):
                 # Recolectar informacion
                 multiprocessing.Process(target=xark.collection, args=()).start()
                 # Sincronizar con el charco
                 multiprocessing.Process(target=xark.synchrome, args=()).start()
 
                 # close connection
+                Conexion().close()
         else:
             exit('Fin de la ejecucion')
     except Exception():
