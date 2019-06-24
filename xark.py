@@ -4,7 +4,7 @@
 XO Agil Recolector Kaibil - XARK
 
 Recolector de informacion interno de la XO. Actualmentle solo recolecta:
-    * Número de serie (Serial Number)
+    * Numero de serie (Serial Number)
     * UUID (Universally Unique IDentifier)
     * Actividades Instaladas (Installed activities)
     * Diaro (Journal Activity)
@@ -44,6 +44,12 @@ class Conexion:
         self.c.execute(query, data)
         self.conn.commit()
 
+        return self.c.lastrowid
+
+    def setmany(self, query, data):
+        self.c.executemany(query, data)
+        self.conn.commit()
+
     def close(self):
         self.c.close()
         self.conn.close()
@@ -54,14 +60,22 @@ class Xark:
         self.db = Conexion()
         # Fecha actual en entero
         self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
+        # Obtenr el identificador de la laptop
+        id = self.getSerialNumber()
+        self.serialnum = id["serialnum"]
+        self.uuid = id["uuid"]
         # Verificar estado diario del kaibil
         response = self.db.get(
-            "SELECT * FROM xark_status WHERE date_print = ?", [(self.day)]
+            "SELECT * FROM xk_status WHERE date_print = ?", [(self.day)]
         )
         if response is None:
-            self.db.set(
-                "INSERT INTO xark_status(date_print) VALUES(?)", [(self.day)]
+            self.dayid = self.db.set(
+                "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)",
+                [(self.serialnum), (self.uuid), (self.day)],
             )
+
+        # Directorio de metadata del Diario
+        self.work_dir = "~/.sugar/default/datastore/"
         # Programador de frecuencia de peticiones
         self.s = sched.scheduler(time.time, time.sleep)
 
@@ -79,40 +93,120 @@ class Xark:
         return data
 
     def read_file(self, file_dir, file_name):
-        """Leer archivos de metadata.
+        """Lee el contenido de archivo de metadata.
         Args:
             file_dir (str): Ruta al directorio de metadata.
             file_name (str): Nombre del archivo a leer.
+        Returns:
+            dict: Nombre del archivo: Contenido del archivo.
         """
-        f = open("{}/metadata/{}".format(file_dir, file_name), "r")
-        contents = f.read()
-        return {file_name: contents}
+        contents = ""
+        if os.path.isfile("{}/metadata/{}".format(file_dir, file_name)):
+            f = open("{}/metadata/{}".format(file_dir, file_name), "r")
+            contents = f.read()
+            if contents is None:
+                contents = "Empty"
+        else:
+            contents = "Empty"
+
+        return contents
+
+    def get_info_journal(self, dir):
+        """Lee y lista cada archivo en el directorio de metadata.
+        Args:
+            dir (str): Ruta al directorio de metadata.
+        Returns:
+            list: Lista de contenidos del diccionario.
+        """
+        data_name = [
+            "activity",
+            "activity_id",
+            "checksum",
+            "creation_time",
+            "launch-times",
+            "filesize",
+            "icon-color",
+            "keep",
+            "launch-times",
+            "mime_type",
+            "mountpoint",
+            "mtime",
+            "share-scope",
+            "spent-times",
+            "timestamp",
+            "title",
+            "title_set_by_user",
+            "uid",
+        ]
+
+        if dir not in [
+            "index",
+            "checksums",
+            "index_updated",
+            "version",
+            "ds_clean",
+        ]:
+            in_dir = subprocess.Popen(
+                "ls -d {}{}/*".format(self.work_dir, dir),
+                shell=True,
+                stdout=subprocess.PIPE,
+            ).stdout.readlines()
+            info = tuple(
+                self.dayid,
+                map(
+                    lambda x: self.read_file(in_dir[0].strip(), x)
+                    if x in data_name
+                    else False,
+                    data_name,
+                ),
+            )
+
+            return info
+
+    def extrac_journal(self):
+        """Lee y extrae la informacion de metadata del diaro.
+        Returns:
+            list: Lista de contenidos de cada archivo de metadata.
+        """
+        salida = subprocess.Popen(
+            "ls {}".format(self.work_dir), shell=True, stdout=subprocess.PIPE
+        ).stdout.readlines()
+        salida = list(x.strip() for x in salida)
+        info = map(lambda x: self.get_info_journal(x), salida)
+        info = filter(lambda x: x, info)
+        return info
 
     def collection(self):
-        """Recolectar informacion."""
+        """Recolectar informacion de la laptop xo.
+        Returns:
+            bool: True/False.
+        """
         response = self.db.get(
-            "SELECT collect_status FROM xark_status WHERE date_print = ?",
+            "SELECT collect_status FROM xk_status WHERE date_print = ?",
             [(self.day)],
         )
-        if not response[0]:
-            # Termina la funcion ya se ha recolectado informacion
-            return bool(response[0])
+        if int(response[0]):
+            # La informacion para el dia ya se ha rocolectado.
+            # Termina la funcion.
+            return bool(int(response[0]))
 
-        data = self.getSerialNumber()
-        self.db.set(
-            "INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)",
-            [(data["serialnum"]), (data["uuid"])],
+        # Extraer informacion del diario y guadarlo en la base de datos.
+        journal = self.extrac_journal()
+        print(journal)
+        self.db.setmany(
+            "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            journal,
         )
         # Estado de sincronizacion en `Sincronizado`
-        self.db.set(
-            "UPDATE xark_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
-            [(True), (datetime.datetime.now()), (self.day)],
-        )
+        # self.db.set(
+        #     "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
+        #     [(True), (datetime.datetime.now()), (self.day)],
+        # )
 
     def synchrome(self):
         """Sincronizar con el charco."""
         response = self.db.get(
-            "SELECT sync_status FROM xark_status WHERE date_print=?",
+            "SELECT sync_status FROM xk_status WHERE date_print=?",
             [(self.day)],
         )
         if not response[0]:
@@ -137,7 +231,7 @@ class Xark:
             result = int(result[0].strip())
             if code == 200:
                 self.db.set(
-                    "UPDATE xark_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
+                    "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
                     [(True), (datetime.datetime.now()), (self.day)],
                 )
                 return True
@@ -166,7 +260,7 @@ class Xark:
         except_code = tbinfo.split(",")[2].strip()
 
         self.db.set(
-            "INSERT INTO xark_except(except_type, except_messg, file_name, file_line, code_snipe, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, code_snipe, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (except_type),
                 (except_message),
@@ -181,22 +275,21 @@ class Xark:
 
 
 if __name__ == "__main__":
-    """Flujo prinvipal de ejecución."""
+    """Flujo prinvipal de ejecucion."""
 
     # Log de inicio diario
     logger.info(
-        "Inicio de la ejecución del día {}".format(datetime.datetime.now())
+        "Inicio de la ejecucion del dia {}".format(datetime.datetime.now())
     )
-    # Lista de multiprocesos
-    processes = list()
+
     try:
         # Instancia del Kaibil
         xark = Xark()
 
         # Verifica si el dia de la semana es entre lunes y viernes
         if (
-            datetime.datetime.now().weekday() >= 1
-            and datetime.datetime.now().weekday() <= 5
+            datetime.datetime.now().weekday() >= 0
+            and datetime.datetime.now().weekday() <= 4
         ):
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
             if datetime.datetime.now().time() >= datetime.time(
@@ -220,12 +313,12 @@ if __name__ == "__main__":
                 # sys.exit(1)
         else:
             logger.info(
-                "Día de la semana {} no de lunes a viernes".format(
+                "Dia de la semana {} no de lunes a viernes".format(
                     datetime.datetime.now().weekday()
                 )
             )
             # sys.exit(1)
-    except Exception() as e:
-        logger.error("Exceptión: {}".format(e))
-        xark.cath_Exception(e)
+    except:
+        logger.error("Exception: {}".format(" "))
+        Xark().cath_Exception(" ")
         # sys.exit(1)

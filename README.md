@@ -18,7 +18,7 @@ Data extracted from the OX laptop.
 - Georeference
 - MAC
 
-## Información del Dispocitivo
+## Información del Dispositivo
 
 ### Número de Serie
 
