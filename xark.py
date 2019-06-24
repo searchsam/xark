@@ -4,7 +4,7 @@
 XO Agil Recolector Kaibil - XARK
 
 Recolector de informacion interno de la XO. Actualmentle solo recolecta:
-    * Número de serie (Serial Number)
+    * Numero de serie (Serial Number)
     * UUID (Universally Unique IDentifier)
     * Actividades Instaladas (Installed activities)
     * Diaro (Journal Activity)
@@ -54,13 +54,18 @@ class Xark:
         self.db = Conexion()
         # Fecha actual en entero
         self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
+        # Obtenr el identificador de la laptop
+        id = self.getSerialNumber()
+        self.serialnum = id["serialnum"]
+        self.uuid = id["uuid"]
         # Verificar estado diario del kaibil
         response = self.db.get(
-            "SELECT * FROM xark_status WHERE date_print = ?", [(self.day)]
+            "SELECT * FROM xk_status WHERE date_print = ?", [(self.day)]
         )
         if response is None:
             self.db.set(
-                "INSERT INTO xark_status(date_print) VALUES(?)", [(self.day)]
+                "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)",
+                [(self.serialnum), (self.uuid), (self.day)],
             )
         # Programador de frecuencia de peticiones
         self.s = sched.scheduler(time.time, time.sleep)
@@ -89,31 +94,32 @@ class Xark:
         return {file_name: contents}
 
     def collection(self):
-        """Recolectar informacion."""
+        """Recolectar informacion de la laptop xo."""
         response = self.db.get(
-            "SELECT collect_status FROM xark_status WHERE date_print = ?",
+            "SELECT collect_status FROM xk_status WHERE date_print = ?",
             [(self.day)],
         )
-        if not response[0]:
-            # Termina la funcion ya se ha recolectado informacion
-            return bool(response[0])
+        if int(response[0]):
+            # La informacion para el dia ya se ha rocolectado.
+            # Termina la funcion.
+            return bool(int(response[0]))
 
         data = self.getSerialNumber()
         self.db.set(
-            "INSERT INTO data_xo(serial_num, uuid) VALUES(?, ?)",
+            "INSERT INTO xk_data_xo(serial_num, uuid) VALUES(?, ?)",
             [(data["serialnum"]), (data["uuid"])],
         )
 
         # Estado de sincronizacion en `Sincronizado`
         self.db.set(
-            "UPDATE xark_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
+            "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
             [(True), (datetime.datetime.now()), (self.day)],
         )
 
     def synchrome(self):
         """Sincronizar con el charco."""
         response = self.db.get(
-            "SELECT sync_status FROM xark_status WHERE date_print=?",
+            "SELECT sync_status FROM xk_status WHERE date_print=?",
             [(self.day)],
         )
         if not response[0]:
@@ -138,7 +144,7 @@ class Xark:
             result = int(result[0].strip())
             if code == 200:
                 self.db.set(
-                    "UPDATE xark_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
+                    "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
                     [(True), (datetime.datetime.now()), (self.day)],
                 )
                 return True
@@ -167,7 +173,7 @@ class Xark:
         except_code = tbinfo.split(",")[2].strip()
 
         self.db.set(
-            "INSERT INTO xark_except(except_type, except_messg, file_name, file_line, code_snipe, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, code_snipe, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (except_type),
                 (except_message),
@@ -182,11 +188,11 @@ class Xark:
 
 
 if __name__ == "__main__":
-    """Flujo prinvipal de ejecución."""
+    """Flujo prinvipal de ejecucion."""
 
     # Log de inicio diario
     logger.info(
-        "Inicio de la ejecución del día {}".format(datetime.datetime.now())
+        "Inicio de la ejecucion del dia {}".format(datetime.datetime.now())
     )
     # Lista de multiprocesos
     processes = list()
@@ -221,12 +227,12 @@ if __name__ == "__main__":
                 # sys.exit(1)
         else:
             logger.info(
-                "Día de la semana {} no de lunes a viernes".format(
+                "Dia de la semana {} no de lunes a viernes".format(
                     datetime.datetime.now().weekday()
                 )
             )
             # sys.exit(1)
     except Exception() as e:
-        logger.error("Exceptión: {}".format(e))
-        xark.cath_Exception(e)
+        logger.error("Exception: {}".format(e))
+        Xark().cath_Exception(e)
         # sys.exit(1)
