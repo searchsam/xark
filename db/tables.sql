@@ -19,10 +19,14 @@ CREATE TABLE data_xo(
 
 CREATE TABLE xark_except (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    execttype VARCHAR NOT NULL,
-    exectmessg VARCHAR NOT NULL,
-    exectline VARCHAR NOT NULL,
-    codesnipe VARCHAR NOT NULL,
-    servername VARCHAR NOT NULL,
-    execttime DATETIME DEFAULT CURRENT_TIMESTAMP
+    except_type VARCHAR NOT NULL,
+    except_messg VARCHAR NOT NULL,
+	file_name VARCHAR NOT NULL,
+    file_line VARCHAR NOT NULL,
+    except_code VARCHAR NOT NULL,
+	tb_except VARCHAR NOT NULL,
+    server_name VARCHAR NOT NULL,
+    user_name VARCHAR NOT NULL,
+	create_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	update_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
