@@ -81,6 +81,17 @@ El registro de la cada actividad se guadar en 17 archivos que son modificados en
 - `uid`: Identificador Unico `56c315c3-13f1-483e-8846-a57d443f6e0b`.
 - `preview`: Miniatura que se muestra en el sistema `imagen`. Para efecto de xark no sera tomado en cuanta.
 
+### RAM
+
+Memoria RAM en bytes.
+
+```bash
+$ free -m
+              total        used        free      shared  buff/cache   available
+Mem:           7857        6089         400         418        1367         965
+Swap:          7987         112        7875
+```
+
 ## Recursos
 
 - <http://wiki.laptop.org/go/Activation_and_Developer_Keys#Getting_a_developer_key>
