@@ -13,6 +13,7 @@ Recolector de informacion interno de la XO. Actualmentle solo recolecta:
 import os
 import re
 import sys
+import json
 import time
 import sched
 import logging
@@ -41,6 +42,9 @@ class Conexion:
     def get(self, query, data):
         return self.c.execute(query, data).fetchone()
 
+    def getmany(self, query, data):
+        return self.c.execute(query, data).fetchall()
+
     def set(self, query, data):
         self.c.execute(query, data)
         self.conn.commit()
@@ -62,7 +66,7 @@ class Xark:
         # Fecha actual en entero
         self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
         # Obtenr el identificador de la laptop
-        id = self.getSerialNumber()
+        id = self.getSerial()
         self.serialnum = id["serialnum"]
         self.uuid = id["uuid"]
         # Verificar estado diario del kaibil
@@ -91,7 +95,7 @@ class Xark:
 
         return int(response[0])
 
-    def getSerialNumber(self):
+    def getSerial(self):
         """Capturar Numero de serie y UUID"""
         data = dict()
         f = open("/home/.devkey.html", "r")
@@ -329,44 +333,84 @@ class Xark:
             data,
         )
 
-        response = self.db.get(
+        response_j = self.db.get(
             "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?",
             [(self.dayid)],
         )
-        if int(response[0]) > 0:
+        response_d = self.db.get(
+            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?",
+            [(self.dayid)],
+        )
+        if int(response_j[0]) >= 1 and int(response_d[0]) >= 1:
             # Estado de sincronizacion en `Sincronizado`
             self.db.set(
                 "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
                 [(True), (datetime.datetime.now()), (self.day)],
             )
 
+            return True
+        else:
+            return False
+
     def synchrome(self):
         """Sincronizar con el charco."""
+        server = "http://192.168.8.109:5000/"
+
         response = self.db.get(
-            "SELECT sync_status, collect_status FROM xk_status WHERE date_print=?",
+            "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?",
             [(self.day)],
         )
-        if bool(int(response[0])) and not bool(int(response[1])):
+        if bool(int(response[0])) and bool(int(response[1])):
             # Termina la funcion si ya se a sincronizacion con el charco
             return bool(int(response[0]))
 
         # Verifica si el IIAB esta disponible
         code = subprocess.Popen(
-            'curl -o /dev/null -s -w "%{http_code}\n" http://10.0.11.33:5000/',
+            'curl -o /dev/null -s -w "%{http_code}\n" ' + server,
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
         code = int(code[0].strip())
+        if code == 200 and bool(int(response[1])):
+            data = dict()
+            data["user"] = "olpc"
+            data["client"] = self.getSerial()
 
-        if code == 200:
-            url = "http://10.0.11.33:5000/"
+            journal = self.db.getmany(
+                "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid FROM xk_journal_xo WHERE xark_status_id = ?",
+                [(self.dayid)],
+            )
+            if journal is not None:
+                data["journal"] = list(
+                    list(i.encode() for i in x) for x in journal
+                )
+            else:
+                data["journal"] = list(list(map("Empty", range(17))))
+
+            device = self.db.getmany(
+                "SELECT activities_history, ram, rom, kernel, arqc, mac FROM xk_data_xo WHERE xark_status_id = ?",
+                [(self.dayid)],
+            )
+            if device is not None:
+                data["device"] = list(
+                    list(i.encode() for i in x) for x in device
+                )
+            else:
+                data["journal"] = list(list(map("Empty", range(6))))
+
+            request_url = (
+                'curl -o /dev/null -w "%{http_code}\\n" '
+                + '-H "Content-type: application/json" -X POST '
+                + server
+                + "data -d '"
+                + json.dumps(data)
+                + "'"
+            )
             result = subprocess.Popen(
-                'curl -o /dev/null -s -w "%{http_code}\n" ' + url,
-                shell=True,
-                stdout=subprocess.PIPE,
+                request_url, shell=True, stdout=subprocess.PIPE
             ).stdout.readlines()
             result = int(result[0].strip())
-            if code == 200:
+            if result == 200:
                 self.db.set(
                     "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
                     [(True), (datetime.datetime.now()), (self.day)],
@@ -398,18 +442,20 @@ def cath_Exception(tb_except):
     except_code = tbinfo.split(",")[2].strip()
 
     Conexion().set(
-        "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, code_snipe, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
         [
-            (except_type),
-            (except_message),
-            (file_name),
-            (file_line),
-            (except_code),
-            (tb_except),
-            (os.environ["USER"]),
-            (os.uname()[1]),
+            (except_type.replace("'", '"')),
+            (str(except_message).replace("'", '"')),
+            (file_name.replace("'", '"')),
+            (file_line.replace("'", '"')),
+            (except_code.replace("'", '"')),
+            (str(tb_except).replace("'", '"')),
+            (os.environ["USER"].replace("'", '"')),
+            (os.uname()[1].replace("'", '"')),
         ],
     )
+
+    return True
 
 
 if __name__ == "__main__":
@@ -448,15 +494,16 @@ if __name__ == "__main__":
                         datetime.datetime.now().time()
                     )
                 )
-                # sys.exit(1)
+
         else:
             logger.info(
                 "Dia de la semana {} no de lunes a viernes".format(
                     datetime.datetime.now().weekday()
                 )
             )
-            # sys.exit(1)
-    except:
-        logger.error("Exception: {}".format(sys.exc_info()[0]))
-        cath_Exception(sys.exc_info()[0])
-        # sys.exit(1)
+
+    except Exception() as e:
+        logger.error("Exception: {}".format(e))
+        print(e)
+        cath_Exception(e)
+        sys.exit(1)
