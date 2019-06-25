@@ -11,6 +11,7 @@ Recolector de informacion interno de la XO. Actualmentle solo recolecta:
 """
 
 import os
+import re
 import sys
 import time
 import sched
@@ -209,17 +210,96 @@ class Xark:
         return lista
 
     def getRam(self):
-        ram = subprocess.Popen(
+        ram = ""
+        salida = subprocess.Popen(
             "free -m", shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
-        print(ram)
+        mem = re.sub(r"\s+", " ", salida[1])
+        swap = re.sub(r"\s+", " ", salida[2])
+
+        for i, v in enumerate(mem.strip().split(" ")):
+            if i > 0 and i <= 3:
+                if i < 3:
+                    ram = ram + v + ","
+                else:
+                    ram = ram + v
+
+        ram = ram + "|"
+
+        for i, v in enumerate(swap.strip().split(" ")):
+            if i > 0 and i <= 3:
+                if i < 3:
+                    ram = ram + v + ","
+                else:
+                    ram = ram + v
+
+        return ram
+
+    def getRom(self):
+        rom = ""
+        salida = subprocess.Popen(
+            "df -H --output=source,size,used,avail,target",
+            shell=True,
+            stdout=subprocess.PIPE,
+        ).stdout.readlines()
+        for i in salida:
+            dir = re.sub(r"\s+", " ", i.strip())
+            if "/dev/" in dir.split(" ")[0]:
+                for x, y in enumerate(dir.split(" ")):
+                    if x > 0 and x <= 4:
+                        if x < 4:
+                            rom = rom + y + ","
+                        else:
+                            rom = rom + y
+                rom = rom + "|"
+        rom = rom[:-1]
+
+        return rom
+
+    def getKernel(self):
+        kernel = subprocess.Popen(
+            "uname -a", shell=True, stdout=subprocess.PIPE
+        ).stdout.readlines()
+        kernel = kernel[0].strip().split("#")[0].strip()
+        return kernel
+
+    def getArch(self):
+        arch = ""
+        salida = subprocess.Popen(
+            "lscpu", shell=True, stdout=subprocess.PIPE
+        ).stdout.readlines()
+        arch = arch + re.sub(r"\s+", " ", salida[0].strip()).split(" ")[1]
+        arch = arch + "|"
+        arch = arch + re.sub(r"\s+", " ", salida[4].strip()).split(" ")[1]
+        arch = arch + "|"
+        arch = (
+            arch
+            + re.sub(r"\s+", " ", salida[13].strip()).split(":")[1].strip()
+        )
+
+        return arch
+
+    def getMac(self):
+        iface = "wlp2s0"
+        mac = subprocess.Popen(
+            "cat /sys/class/net/{}/address".format(iface),
+            shell=True,
+            stdout=subprocess.PIPE,
+        ).stdout.readlines()
+
+        return mac[0].strip()
 
     def extracData(self):
         data = list()
         data.append(self.getActivityHistory())
-        self.getRam()
-        print(data)
-        return True
+        data.append(self.getRam())
+        data.append(self.getRom())
+        data.append(self.getKernel())
+        data.append(self.getArch())
+        data.append(self.getMac())
+        data.insert(0, self.dayid)
+
+        return tuple(data)
 
     def collection(self):
         """Recolectar informacion de la laptop xo.
@@ -243,18 +323,22 @@ class Xark:
         )
 
         # Extraer informacion del dispocitivo
-        self.extracData()
+        data = self.extracData()
+        self.db.set(
+            "INSERT INTO xk_data_xo(xark_status_id, activities_history, ram, rom, kernel, arqc, mac) VALUES(?, ?, ?, ?, ?, ?, ?)",
+            data,
+        )
 
-        # response = self.db.get(
-        #     "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?",
-        #     [(self.dayid)],
-        # )
-        # if int(response[0]) > 0:
-        #     # Estado de sincronizacion en `Sincronizado`
-        #     self.db.set(
-        #         "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
-        #         [(True), (datetime.datetime.now()), (self.day)],
-        #     )
+        response = self.db.get(
+            "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?",
+            [(self.dayid)],
+        )
+        if int(response[0]) > 0:
+            # Estado de sincronizacion en `Sincronizado`
+            self.db.set(
+                "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
+                [(True), (datetime.datetime.now()), (self.day)],
+            )
 
     def synchrome(self):
         """Sincronizar con el charco."""
@@ -346,23 +430,25 @@ if __name__ == "__main__":
             and datetime.datetime.now().weekday() <= 4
         ):
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
-            # if datetime.datetime.now().time() >= datetime.time(
-            #     6, 0
-            # ) and datetime.datetime.now().time() <= datetime.time(18, 0):
-            # Recolectar informacion
-            multiprocessing.Process(target=xark.collection, args=()).start()
-            # Sincronizar con el charco
-            multiprocessing.Process(target=xark.synchrome, args=()).start()
+            if datetime.datetime.now().time() >= datetime.time(
+                6, 0
+            ) and datetime.datetime.now().time() <= datetime.time(18, 0):
+                # Recolectar informacion
+                multiprocessing.Process(
+                    target=xark.collection, args=()
+                ).start()
+                # Sincronizar con el charco
+                multiprocessing.Process(target=xark.synchrome, args=()).start()
 
-            # close connection
-            Conexion().close()
-            # else:
-            #     logger.info(
-            #         "Hora del dia {} fuera del rango 6:00 a 18:00".format(
-            #             datetime.datetime.now().time()
-            #         )
-            #     )
-            # sys.exit(1)
+                # close connection
+                Conexion().close()
+            else:
+                logger.info(
+                    "Hora del dia {} fuera del rango 6:00 a 18:00".format(
+                        datetime.datetime.now().time()
+                    )
+                )
+                # sys.exit(1)
         else:
             logger.info(
                 "Dia de la semana {} no de lunes a viernes".format(
@@ -370,7 +456,7 @@ if __name__ == "__main__":
                 )
             )
             # sys.exit(1)
-    except Exception() as e:
-        logger.error("Exception: {}".format(e))
-        cath_Exception(e)
+    except:
+        logger.error("Exception: {}".format(sys.exc_info()[0]))
+        cath_Exception(sys.exc_info()[0])
         # sys.exit(1)
