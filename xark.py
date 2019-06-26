@@ -68,6 +68,7 @@ class Xark:
         response = self.db.get(
             "SELECT * FROM xk_status WHERE date_print = ?", [(self.day)]
         )
+        # print(response)
         if response is None:
             self.dayid = self.db.set(
                 "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)",
@@ -152,7 +153,6 @@ class Xark:
                 stdout=subprocess.PIPE,
             ).stdout.readlines()
             info = tuple(
-                self.dayid,
                 map(
                     lambda x: self.read_file(in_dir[0].strip(), x)
                     if x in data_name
@@ -160,7 +160,7 @@ class Xark:
                     data_name,
                 ),
             )
-
+            print(info[0])
             return info
 
     def extrac_journal(self):
@@ -192,7 +192,7 @@ class Xark:
 
         # Extraer informacion del diario y guadarlo en la base de datos.
         journal = self.extrac_journal()
-        print(journal)
+        # print(journal)
         self.db.setmany(
             "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             journal,
@@ -273,7 +273,6 @@ class Xark:
             ],
         )
 
-
 if __name__ == "__main__":
     """Flujo prinvipal de ejecucion."""
 
@@ -294,7 +293,7 @@ if __name__ == "__main__":
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
             if datetime.datetime.now().time() >= datetime.time(
                 6, 0
-            ) and datetime.datetime.now().time() <= datetime.time(18, 0):
+            ) and datetime.datetime.now().time() <= datetime.time(19,  0):
                 # Recolectar informacion
                 multiprocessing.Process(
                     target=xark.collection, args=()
