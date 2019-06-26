@@ -305,6 +305,11 @@ class Xark:
 
         return tuple(data)
 
+    def extracLogs(self):
+        print(True)
+
+        return True
+
     def collection(self):
         """Recolectar informacion de la laptop xo.
         Returns:
