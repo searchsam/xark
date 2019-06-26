@@ -338,24 +338,7 @@ class Xark:
             data,
         )
 
-        response_j = self.db.get(
-            "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?",
-            [(self.dayid)],
-        )
-        response_d = self.db.get(
-            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?",
-            [(self.dayid)],
-        )
-        if int(response_j[0]) >= 1 and int(response_d[0]) >= 1:
-            # Estado de sincronizacion en `Sincronizado`
-            self.db.set(
-                "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
-                [(True), (datetime.datetime.now()), (self.day)],
-            )
-
-            return True
-        else:
-            return False
+        return True
 
     def synchrome(self):
         """Sincronizar con el charco."""
@@ -415,12 +398,7 @@ class Xark:
                 request_url, shell=True, stdout=subprocess.PIPE
             ).stdout.readlines()
             result = int(result[0].strip())
-            if result == 200:
-                self.db.set(
-                    "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
-                    [(True), (datetime.datetime.now()), (self.day)],
-                )
-                return True
+            print(result)
         else:
             self.s.enter(10, 1, self.synchrome, ())
             self.s.run()
@@ -475,38 +453,13 @@ if __name__ == "__main__":
         # Instancia del Kaibil
         xark = Xark()
 
-        # Verifica si el dia de la semana es entre lunes y viernes
-        if (
-            datetime.datetime.now().weekday() >= 0
-            and datetime.datetime.now().weekday() <= 4
-        ):
-            # Verifica que la hora del dia sea entre las 6:00 y las 18:00
-            if datetime.datetime.now().time() >= datetime.time(
-                6, 0
-            ) and datetime.datetime.now().time() <= datetime.time(18, 0):
-                # Recolectar informacion
-                multiprocessing.Process(
-                    target=xark.collection, args=()
-                ).start()
-                # Sincronizar con el charco
-                multiprocessing.Process(target=xark.synchrome, args=()).start()
+        # Recolectar informacion
+        multiprocessing.Process(target=xark.collection, args=()).start()
+        # Sincronizar con el charco
+        multiprocessing.Process(target=xark.synchrome, args=()).start()
 
-                # close connection
-                Conexion().close()
-            else:
-                logger.info(
-                    "Hora del dia {} fuera del rango 6:00 a 18:00".format(
-                        datetime.datetime.now().time()
-                    )
-                )
-
-        else:
-            logger.info(
-                "Dia de la semana {} no de lunes a viernes".format(
-                    datetime.datetime.now().weekday()
-                )
-            )
-
+        # close connection
+        Conexion().close()
     except Exception() as e:
         logger.error("Exception: {}".format(e))
         print(e)
