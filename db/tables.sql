@@ -1,0 +1,67 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE xk_status(
+	id_status INTEGER PRIMARY KEY AUTOINCREMENT,
+	serial_num VARCHAR NOT NULL,
+	uuid VARCHAR NOT NULL,
+	date_print INTEGER NOT NULL,
+	sync_status BOOLEAN DEFAULT FALSE,
+	collect_status BOOLEAN DEFAULT FALSE,
+	sync_date TIMESTAMP,
+	collect_date TIMESTAMP,
+	create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE xk_journal_xo(
+	id_journal_xo INTEGER PRIMARY KEY AUTOINCREMENT,
+	xark_status_id INTEGER,
+	activity VARCHAR NOT NULL,
+	activity_id VARCHAR NOT NULL,
+	checksum VARCHAR NOT NULL,
+	creation_time VARCHAR NOT NULL,
+	file_size VARCHAR NOT NULL,
+	icon_color VARCHAR NOT NULL,
+	keep VARCHAR NOT NULL,
+	launch_times VARCHAR NOT NULL,
+	mime_type VARCHAR NOT NULL,
+	mountpoint VARCHAR NOT NULL,
+	mtime VARCHAR NOT NULL,
+	share_scope VARCHAR NOT NULL,
+	spent_times VARCHAR NOT NULL,
+	time_stamp VARCHAR NOT NULL,
+	title VARCHAR NOT NULL,
+	title_set_by_user VARCHAR NOT NULL,
+	uid VARCHAR NOT NULL,
+	create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(xark_status_id) REFERENCES xk_status(id_status)
+);
+
+CREATE TABLE xk_data_xo(
+	id_data_xo INTEGER PRIMARY KEY AUTOINCREMENT,
+	xark_status_id INTEGER UNIQUE,
+	activities_history VARCHAR NOT NULL,
+	ram VARCHAR NOT NULL,
+	rom VARCHAR NOT NULL,
+	kernel VARCHAR NOT NULL,
+	arqc VARCHAR NOT NULL,
+	mac VARCHAR NOT NULL,
+	create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(xark_status_id) REFERENCES xk_status(id_status)
+);
+
+CREATE TABLE xk_excepts(
+    id_excepts INTEGER PRIMARY KEY AUTOINCREMENT,
+    except_type VARCHAR NOT NULL,
+    except_messg VARCHAR NOT NULL,
+	file_name VARCHAR NOT NULL,
+    file_line VARCHAR NOT NULL,
+    except_code VARCHAR NOT NULL,
+	tb_except VARCHAR NOT NULL,
+    server_name VARCHAR NOT NULL,
+    user_name VARCHAR NOT NULL,
+	create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
