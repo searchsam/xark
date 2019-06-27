@@ -355,6 +355,7 @@ class Xark:
     def synchrome(self):
         """Sincronizar con el charco."""
         server = "http://192.168.8.109:5000/"
+        user = "olpc"
 
         response = self.db.get(
             "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?",
@@ -365,16 +366,23 @@ class Xark:
             return bool(int(response[0]))
 
         # Verifica si el IIAB esta disponible
+        request_url = (
+            'curl -o /dev/null -w "%{http_code}\\n" -X POST '
+            + server
+            + ' -d "user='
+            + user
+            + "&client_id="
+            + self.serialnum
+            + "&client_secret="
+            + self.uuid
+            + '"'
+        )
         code = subprocess.Popen(
-            'curl -o /dev/null -s -w "%{http_code}\n" ' + server,
-            shell=True,
-            stdout=subprocess.PIPE,
+            request_url, shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
         code = int(code[0].strip())
         if code == 200 and bool(int(response[1])):
             data = dict()
-            data["user"] = "olpc"
-            data["client"] = self.getSerial()
 
             journal = self.db.getmany(
                 "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid FROM xk_journal_xo WHERE xark_status_id = ?",
@@ -396,15 +404,19 @@ class Xark:
                     list(i.encode() for i in x) for x in device
                 )
             else:
-                data["journal"] = list(list(map("Empty", range(6))))
+                data["device"] = list(list(map("Empty", range(6))))
 
             request_url = (
-                'curl -o /dev/null -w "%{http_code}\\n" '
-                + '-H "Content-type: application/json" -X POST '
+                "curl -u "
+                + self.serialnum
+                + ":"
+                + self.uuid
+                + ' -o /dev/null -w "%{http_code}\\n" -X POST '
                 + server
-                + "data -d '"
-                + json.dumps(data)
-                + "'"
+                + "data -d "
+                + '"grant_type=password&username='
+                + user
+                + '&password=valid&scope=profile&data={}"'.format(data)
             )
             result = subprocess.Popen(
                 request_url, shell=True, stdout=subprocess.PIPE
