@@ -13,10 +13,10 @@ Data extracted from the OX laptop.
 - Registros de Actividades (Activities logs)
 - RAM
 - ROM
-- Procesador (Processor)
+- Kernel (kernel)
 - Arquitectura (Architecture)
-- Georeference
 - MAC
+- Georeference
 
 ## Información del Dispositivo
 
@@ -80,6 +80,80 @@ El registro de la cada actividad se guadar en 17 archivos que son modificados en
 - `title_set_by_user`: Nombre establecido por el usuario para ser mostrado en el sistema `0`.
 - `uid`: Identificador Unico `56c315c3-13f1-483e-8846-a57d443f6e0b`.
 - `preview`: Miniatura que se muestra en el sistema `imagen`. Para efecto de xark no sera tomado en cuanta.
+
+### RAM
+
+Memoria RAM en bytes.
+
+```bash
+$ free -m
+              total        used        free      shared  buff/cache   available
+Mem:           7857        6089         400         418        1367         965
+Swap:          7987         112        7875
+```
+
+### ROM
+
+```bash
+$ df -H
+S.ficheros              Tamaño Usados  Disp Uso% Montado en
+devtmpfs                  4.2G      0  4.2G   0% /dev
+tmpfs                     4.2G   188M  4.0G   5% /dev/shm
+tmpfs                     4.2G   1.6M  4.2G   1% /run
+tmpfs                     4.2G      0  4.2G   0% /sys/fs/cgroup
+/dev/mapper/fedora-root    53G    19G   32G  37% /
+tmpfs                     4.2G   1.3M  4.2G   1% /tmp
+/dev/sda2                 1.1G   205M  748M  22% /boot
+/dev/mapper/fedora-home   173G   152G   13G  93% /home
+/dev/sda1                 210M    19M  191M   9% /boot/efi
+tmpfs                     824M    58k  824M   1% /run/user/1000
+```
+
+### Kernel
+
+```bash
+$ uname -a
+Linux localhost.localdomain 5.1.11-300.fc30.x86_64 #1 SMP Mon Jun 17 19:33:15 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
+```
+
+### Arquitectura
+
+```bash
+$ lscpu
+Arquitectura:                        x86_64 # tomado
+modo(s) de operación de las CPUs:    32-bit, 64-bit
+Orden de los bytes:                  Little Endian
+Tamaños de las direcciones:          39 bits physical, 48 bits virtual
+CPU(s):                              4 # tomado
+Lista de la(s) CPU(s) en línea:      0-3
+Hilo(s) de procesamiento por núcleo: 2
+Núcleo(s) por «socket»:              2
+«Socket(s)»                          1
+Modo(s) NUMA:                        1
+ID de fabricante:                    GenuineIntel
+Familia de CPU:                      6
+Modelo:                              142
+Nombre del modelo:                   Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz # tomado
+Revisión:                            9
+CPU MHz:                             823.721
+CPU MHz máx.:                        3100.0000
+CPU MHz mín.:                        400.0000
+BogoMIPS:                            5424.00
+Virtualización:                      VT-x
+Caché L1d:                           32K
+Caché L1i:                           32K
+Caché L2:                            256K
+Caché L3:                            3072K
+CPU(s) del nodo NUMA 0:              0-3
+Indicadores:                         fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d
+```
+
+### MAC
+
+```bash
+$ cat /sys/class/net/$IFACE/address
+e4:70:b8:cf:51:f7
+```
 
 ## Recursos
 

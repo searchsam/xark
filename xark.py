@@ -11,7 +11,9 @@ Recolector de informacion interno de la XO. Actualmentle solo recolecta:
 """
 
 import os
+import re
 import sys
+import json
 import time
 import sched
 import logging
@@ -40,6 +42,9 @@ class Conexion:
     def get(self, query, data):
         return self.c.execute(query, data).fetchone()
 
+    def getmany(self, query, data):
+        return self.c.execute(query, data).fetchall()
+
     def set(self, query, data):
         self.c.execute(query, data)
         self.conn.commit()
@@ -61,10 +66,11 @@ class Xark:
         # Fecha actual en entero
         self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
         # Obtenr el identificador de la laptop
-        id = self.getSerialNumber()
+        id = self.getSerial()
         self.serialnum = id["serialnum"]
         self.uuid = id["uuid"]
         # Verificar estado diario del kaibil
+        self.dayid = None
         response = self.db.get(
             "SELECT * FROM xk_status WHERE date_print = ?", [(self.day)]
         )
@@ -74,13 +80,23 @@ class Xark:
                 "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)",
                 [(self.serialnum), (self.uuid), (self.day)],
             )
+        else:
+            self.dayid = self.getDailyId()
 
         # Directorio de metadata del Diario
         self.work_dir = "~/.sugar/default/datastore/"
         # Programador de frecuencia de peticiones
         self.s = sched.scheduler(time.time, time.sleep)
 
-    def getSerialNumber(self):
+    def getDailyId(self):
+        response = self.db.get(
+            "SELECT id_status FROM xk_status WHERE date_print = ?",
+            [(self.day)],
+        )
+
+        return int(response[0])
+
+    def getSerial(self):
         """Capturar Numero de serie y UUID"""
         data = dict()
         f = open("/home/.devkey.html", "r")
@@ -93,7 +109,20 @@ class Xark:
 
         return data
 
-    def read_file(self, file_dir, file_name):
+    def addFirst(self, data, item):
+        """Agrega un elemento a un tupla a inicio de la tupla.
+        Args:
+            data (tuplr): Tupla a la que se agregara el elemento.
+            item (str): Elemento que se agregara a la tupla.
+        Returns:
+            tuple: Tupla con el item agregado al inicio.
+        """
+        tmp_list = list(data)
+        tmp_list.insert(0, item)
+
+        return tuple(tmp_list)
+
+    def readFile(self, file_dir, file_name):
         """Lee el contenido de archivo de metadata.
         Args:
             file_dir (str): Ruta al directorio de metadata.
@@ -105,14 +134,14 @@ class Xark:
         if os.path.isfile("{}/metadata/{}".format(file_dir, file_name)):
             f = open("{}/metadata/{}".format(file_dir, file_name), "r")
             contents = f.read()
-            if contents is None:
+            if contents is None or contents == "":
                 contents = "Empty"
         else:
             contents = "Empty"
 
         return contents
 
-    def get_info_journal(self, dir):
+    def getInfoJournal(self, dir):
         """Lee y lista cada archivo en el directorio de metadata.
         Args:
             dir (str): Ruta al directorio de metadata.
@@ -124,7 +153,6 @@ class Xark:
             "activity_id",
             "checksum",
             "creation_time",
-            "launch-times",
             "filesize",
             "icon-color",
             "keep",
@@ -153,17 +181,14 @@ class Xark:
                 stdout=subprocess.PIPE,
             ).stdout.readlines()
             info = tuple(
-                map(
-                    lambda x: self.read_file(in_dir[0].strip(), x)
-                    if x in data_name
-                    else False,
-                    data_name,
-                ),
+
+                map(lambda x: self.readFile(in_dir[0].strip(), x), data_name)
             )
-            print(info[0])
+            info = self.addFirst(info, self.dayid)
+            print(info)
             return info
 
-    def extrac_journal(self):
+    def extracJournal(self):
         """Lee y extrae la informacion de metadata del diaro.
         Returns:
             list: Lista de contenidos de cada archivo de metadata.
@@ -172,9 +197,120 @@ class Xark:
             "ls {}".format(self.work_dir), shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
         salida = list(x.strip() for x in salida)
-        info = map(lambda x: self.get_info_journal(x), salida)
+        info = map(lambda x: self.getInfoJournal(x), salida)
         info = filter(lambda x: x, info)
+
         return info
+
+    def getActivityHistory(self):
+        lista = ""
+        salida = subprocess.Popen(
+            "ls ~/Actividades/", shell=True, stdout=subprocess.PIPE
+        ).stdout.readlines()
+        for i, v in enumerate(salida):
+            if i < len(salida) - 1:
+                lista += v.strip() + ","
+            else:
+                lista += v.strip()
+
+        return lista
+
+    def getRam(self):
+        ram = ""
+        salida = subprocess.Popen(
+            "free -m", shell=True, stdout=subprocess.PIPE
+        ).stdout.readlines()
+        mem = re.sub(r"\s+", " ", salida[1])
+        swap = re.sub(r"\s+", " ", salida[2])
+
+        for i, v in enumerate(mem.strip().split(" ")):
+            if i > 0 and i <= 3:
+                if i < 3:
+                    ram = ram + v + ","
+                else:
+                    ram = ram + v
+
+        ram = ram + "|"
+
+        for i, v in enumerate(swap.strip().split(" ")):
+            if i > 0 and i <= 3:
+                if i < 3:
+                    ram = ram + v + ","
+                else:
+                    ram = ram + v
+
+        return ram
+
+    def getRom(self):
+        rom = ""
+        salida = subprocess.Popen(
+            "df -H --output=source,size,used,avail,target",
+            shell=True,
+            stdout=subprocess.PIPE,
+        ).stdout.readlines()
+        for i in salida:
+            dir = re.sub(r"\s+", " ", i.strip())
+            if "/dev/" in dir.split(" ")[0]:
+                for x, y in enumerate(dir.split(" ")):
+                    if x > 0 and x <= 4:
+                        if x < 4:
+                            rom = rom + y + ","
+                        else:
+                            rom = rom + y
+                rom = rom + "|"
+        rom = rom[:-1]
+
+        return rom
+
+    def getKernel(self):
+        kernel = subprocess.Popen(
+            "uname -a", shell=True, stdout=subprocess.PIPE
+        ).stdout.readlines()
+        kernel = kernel[0].strip().split("#")[0].strip()
+        return kernel
+
+    def getArch(self):
+        arch = ""
+        salida = subprocess.Popen(
+            "lscpu", shell=True, stdout=subprocess.PIPE
+        ).stdout.readlines()
+        arch = arch + re.sub(r"\s+", " ", salida[0].strip()).split(" ")[1]
+        arch = arch + "|"
+        arch = arch + re.sub(r"\s+", " ", salida[4].strip()).split(" ")[1]
+        arch = arch + "|"
+        arch = (
+            arch
+            + re.sub(r"\s+", " ", salida[13].strip()).split(":")[1].strip()
+        )
+
+        return arch
+
+    def getMac(self):
+        iface = "wlp2s0"
+        mac = subprocess.Popen(
+            "cat /sys/class/net/{}/address".format(iface),
+            shell=True,
+            stdout=subprocess.PIPE,
+        ).stdout.readlines()
+
+        return mac[0].strip()
+
+    def extracData(self):
+        data = list()
+        data.append(self.getActivityHistory())
+        data.append(self.getRam())
+        data.append(self.getRom())
+        data.append(self.getKernel())
+        data.append(self.getArch())
+        data.append(self.getMac())
+        data.insert(0, self.dayid)
+
+        return tuple(data)
+
+    def extracLogs(self):
+        print(True)
+
+        return True
 
     def collection(self):
         """Recolectar informacion de la laptop xo.
@@ -185,51 +321,96 @@ class Xark:
             "SELECT collect_status FROM xk_status WHERE date_print = ?",
             [(self.day)],
         )
-        if int(response[0]):
+        if bool(int(response[0])):
             # La informacion para el dia ya se ha rocolectado.
             # Termina la funcion.
             return bool(int(response[0]))
 
-        # Extraer informacion del diario y guadarlo en la base de datos.
-        journal = self.extrac_journal()
-        # print(journal)
-        self.db.setmany(
-            "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            journal,
+        # Extraer informacion del dispocitivo
+        data = self.extracData()
+        self.db.set(
+            "INSERT INTO xk_data_xo(xark_status_id, activities_history, ram, rom, kernel, arqc, mac) VALUES(?, ?, ?, ?, ?, ?, ?)",
+            data,
         )
-        # Estado de sincronizacion en `Sincronizado`
-        # self.db.set(
-        #     "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
-        #     [(True), (datetime.datetime.now()), (self.day)],
-        # )
+
+        response_j = self.db.get(
+            "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?",
+            [(self.dayid)],
+        )
+        response_d = self.db.get(
+            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?",
+            [(self.dayid)],
+        )
+        if int(response_j[0]) >= 1 and int(response_d[0]) >= 1:
+            # Estado de sincronizacion en `Sincronizado`
+            self.db.set(
+                "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
+                [(True), (datetime.datetime.now()), (self.day)],
+            )
+
+            return True
+        else:
+            return False
 
     def synchrome(self):
         """Sincronizar con el charco."""
+        server = "http://192.168.8.109:5000/"
+
         response = self.db.get(
-            "SELECT sync_status FROM xk_status WHERE date_print=?",
+            "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?",
             [(self.day)],
         )
-        if not response[0]:
+        if bool(int(response[0])) and bool(int(response[1])):
             # Termina la funcion si ya se a sincronizacion con el charco
-            return bool(response[0])
+            return bool(int(response[0]))
 
         # Verifica si el IIAB esta disponible
         code = subprocess.Popen(
-            'curl -o /dev/null -s -w "%{http_code}\n" http://10.0.11.33:5000/',
+            'curl -o /dev/null -s -w "%{http_code}\n" ' + server,
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
         code = int(code[0].strip())
+        if code == 200 and bool(int(response[1])):
+            data = dict()
+            data["user"] = "olpc"
+            data["client"] = self.getSerial()
 
-        if code == 200:
-            url = "http://10.0.11.33:5000/"
+            journal = self.db.getmany(
+                "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid FROM xk_journal_xo WHERE xark_status_id = ?",
+                [(self.dayid)],
+            )
+            if journal is not None:
+                data["journal"] = list(
+                    list(i.encode() for i in x) for x in journal
+                )
+            else:
+                data["journal"] = list(list(map("Empty", range(17))))
+
+            device = self.db.getmany(
+                "SELECT activities_history, ram, rom, kernel, arqc, mac FROM xk_data_xo WHERE xark_status_id = ?",
+                [(self.dayid)],
+            )
+            if device is not None:
+                data["device"] = list(
+                    list(i.encode() for i in x) for x in device
+                )
+            else:
+                data["journal"] = list(list(map("Empty", range(6))))
+
+            request_url = (
+                'curl -o /dev/null -w "%{http_code}\\n" '
+                + '-H "Content-type: application/json" -X POST '
+                + server
+                + "data -d '"
+                + json.dumps(data)
+                + "'"
+            )
             result = subprocess.Popen(
-                'curl -o /dev/null -s -w "%{http_code}\n" ' + url,
-                shell=True,
-                stdout=subprocess.PIPE,
+                request_url, shell=True, stdout=subprocess.PIPE
             ).stdout.readlines()
             result = int(result[0].strip())
-            if code == 200:
+            if result == 200:
                 self.db.set(
                     "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
                     [(True), (datetime.datetime.now()), (self.day)],
@@ -239,39 +420,42 @@ class Xark:
             self.s.enter(10, 1, self.synchrome, ())
             self.s.run()
 
-    def cath_Exception(self, tb_except):
-        """Captura traceback y excepciones para guardaelas en xark_except.
-        Args:
-            tb_except (str): Excepcion.
-        """
-        # Tipo de la excepcion.
-        except_type = str(sys.exc_info()[0])
-        except_type = except_type.split("'")[1]
-        # Mensaje de la excepcion.
-        except_message = sys.exc_info()[1]
-        # Captura traceback.
-        tb = sys.exc_info()[2]
-        tbinfo = traceback.format_tb(tb)[len(traceback.format_tb(tb)) - 1]
-        # Nombre del script.
-        file_name = tbinfo.split(",")[0].strip()
-        # Linea de la excepcion.
-        file_line = tbinfo.split(",")[1].strip()
-        # Fragmento de codigo de la excepcion.
-        except_code = tbinfo.split(",")[2].strip()
 
-        self.db.set(
-            "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, code_snipe, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
-            [
-                (except_type),
-                (except_message),
-                (file_name),
-                (file_line),
-                (except_code),
-                (tb_except),
-                (os.environ["USER"]),
-                (os.uname()[1]),
-            ],
-        )
+def cath_Exception(tb_except):
+    """Captura traceback y excepciones para guardaelas en xark_except.
+    Args:
+        tb_except (str): Excepcion.
+    """
+    # Tipo de la excepcion.
+    except_type = str(sys.exc_info()[0])
+    except_type = except_type.split("'")[1]
+    # Mensaje de la excepcion.
+    except_message = sys.exc_info()[1]
+    # Captura traceback.
+    tb = sys.exc_info()[2]
+    tbinfo = traceback.format_tb(tb)[len(traceback.format_tb(tb)) - 1]
+    # Nombre del script.
+    file_name = tbinfo.split(",")[0].strip()
+    # Linea de la excepcion.
+    file_line = tbinfo.split(",")[1].strip()
+    # Fragmento de codigo de la excepcion.
+    except_code = tbinfo.split(",")[2].strip()
+
+    Conexion().set(
+        "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (except_type.replace("'", '"')),
+            (str(except_message).replace("'", '"')),
+            (file_name.replace("'", '"')),
+            (file_line.replace("'", '"')),
+            (except_code.replace("'", '"')),
+            (str(tb_except).replace("'", '"')),
+            (os.environ["USER"].replace("'", '"')),
+            (os.uname()[1].replace("'", '"')),
+        ],
+    )
+
+    return True
 
 if __name__ == "__main__":
     """Flujo prinvipal de ejecucion."""
@@ -309,15 +493,16 @@ if __name__ == "__main__":
                         datetime.datetime.now().time()
                     )
                 )
-                # sys.exit(1)
+
         else:
             logger.info(
                 "Dia de la semana {} no de lunes a viernes".format(
                     datetime.datetime.now().weekday()
                 )
             )
-            # sys.exit(1)
-    except:
-        logger.error("Exception: {}".format(" "))
-        Xark().cath_Exception(" ")
-        # sys.exit(1)
+
+    except Exception() as e:
+        logger.error("Exception: {}".format(e))
+        print(e)
+        cath_Exception(e)
+        sys.exit(1)
