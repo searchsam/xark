@@ -1,13 +1,13 @@
 #!/bin/#!/bin/sh
 
-if [ -f ./main.db ];
+if [ -f ./xark.db ];
 then
     # Drop old database sqlite
-    rm main.db
-    cat ./db/tables.sql | sqlite3 ./main.db
+    rm xark.db
+    cat ./db/tables.sql | sqlite3 ./xark.db
 else
     # Create database sqlite
-    cat ./db/tables.sql | sqlite3 ./main.db
+    cat ./db/tables.sql | sqlite3 ./xark.db
 fi
 
 if [ -f ./xark.log ];
