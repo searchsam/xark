@@ -452,6 +452,8 @@ class Xark:
 
     def synchrome(self):
         """Sincronizar con el charco."""
+
+        #Obtener las configuraciones desde config.json
         with open('config.json') as json_data_file:
             data = json.load(json_data_file)
 
