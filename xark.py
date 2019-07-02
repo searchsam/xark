@@ -18,6 +18,7 @@ Internal information collector of the XO. Currently collects:
 import os
 import re
 import sys
+import json
 import time
 import sched
 import logging
@@ -279,7 +280,6 @@ class Xark:
                 stdout=subprocess.PIPE,
             ).stdout.readlines()
             info = tuple(
-
                 map(lambda x: self.readFile(in_dir[0].strip(), x), data_name)
             )
             info = self.addFirst(info, self.dayid)
@@ -453,8 +453,8 @@ class Xark:
     def synchrome(self):
         """Sincronizar con el charco."""
 
-        #Obtener las configuraciones desde config.json
-        with open('config.json') as json_data_file:
+        # Obtener las configuraciones desde config.json
+        with open("config.json") as json_data_file:
             data = json.load(json_data_file)
 
         server = data["host"]
@@ -571,6 +571,7 @@ def cath_Exception(tb_except):
 
     return True
 
+
 if __name__ == "__main__":
     """Flujo prinvipal de ejecucion."""
 
@@ -591,7 +592,7 @@ if __name__ == "__main__":
             # Verifica que la hora del dia sea entre las 6:00 y las 18:00
             if datetime.datetime.now().time() >= datetime.time(
                 6, 0
-            ) and datetime.datetime.now().time() <= datetime.time(19,  0):
+            ) and datetime.datetime.now().time() <= datetime.time(19, 0):
                 # Recolectar informacion
                 multiprocessing.Process(
                     target=xark.collection, args=()
