@@ -205,7 +205,7 @@ class Xark:
     def getActivityHistory(self):
         lista = ""
         salida = subprocess.Popen(
-            "ls ~/Actividades/", shell=True, stdout=subprocess.PIPE
+            "ls ~/Activities/", shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
         for i, v in enumerate(salida):
             if i < len(salida) - 1:
@@ -288,7 +288,7 @@ class Xark:
     def getMac(self):
         iface = "wlp2s0"
         mac = subprocess.Popen(
-            "cat /sys/class/net/{}/address".format(iface),
+            "cat /sys/class/net/{}/address".format(self.iface),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
@@ -354,8 +354,11 @@ class Xark:
 
     def synchrome(self):
         """Sincronizar con el charco."""
-        server = "http://192.168.8.109:5000/"
-        user = "olpc"
+        with open('config.json') as json_data_file:
+            data = json.load(json_data_file)
+
+        server = data["host"]
+        user = data["user"]
 
         response = self.db.get(
             "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?",
