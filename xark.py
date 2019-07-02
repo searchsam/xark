@@ -1,19 +1,23 @@
 #!/usr/bin/python
 
-"""
-XO Agil Recolector Kaibil - XARK
+# -*- coding: utf-8 -*-
+"""XO Agil Recolector Kaibil - XARK
 
-Recolector de informacion interno de la XO. Actualmentle solo recolecta:
-    * Numero de serie (Serial Number)
-    * UUID (Universally Unique IDentifier)
-    * Actividades Instaladas (Installed activities)
-    * Diaro (Journal Activity)
+Internal information collector of the XO. Currently collects:
+    * Serial Number
+    * UUID
+    * Installed Activities
+    * Journal Activity Metadata
+    * RAM
+    * ROM
+    * Kernel
+    * Procesor Architecture
+    * MAC
 """
 
 import os
 import re
 import sys
-import json
 import time
 import sched
 import logging
@@ -35,32 +39,126 @@ logger.setLevel(logging.DEBUG)
 
 
 class Conexion:
+    """
+    Connection class to sqlite3.
+
+    Methods:
+        get(query, data)
+            Get a record from database.
+        getmany(query, data)
+            Get many records from database.
+        set(query, data)
+            Insert a record on database.
+        setmany(query, data)
+            Insert many records on database.
+        close()
+            Close connection to database.
+    """
+
     def __init__(self):
-        self.conn = sqlite3.connect("main.db")
+        self.conn = sqlite3.connect("xark.db")
         self.c = self.conn.cursor()
 
     def get(self, query, data):
+        """Get a record from a table.
+
+        Args:
+            query : str
+                Query string.
+            data : list
+                List of tuples within query's parameters.
+
+        Return:
+            tuple
+                Result record from table.
+        """
+
         return self.c.execute(query, data).fetchone()
 
     def getmany(self, query, data):
+        """Get many records from a table.
+
+        Args:
+            query : str
+                Query string.
+            data : list
+                List of tuples within query's parameters.
+
+        Return:
+            list
+                Result records from a table.
+        """
+
         return self.c.execute(query, data).fetchall()
 
     def set(self, query, data):
+        """Insert a record into a table.
+
+        Args:
+            query : str
+                Query string.
+            data : list
+                List of tuples within query's parameters.
+
+        Return:
+            int
+                Id of the last record inserted.
+        """
+
         self.c.execute(query, data)
         self.conn.commit()
 
         return self.c.lastrowid
 
     def setmany(self, query, data):
+        """Insert many record into a table.
+
+        Args:
+            query : str
+                Query string.
+            data : list
+                List of tuples within query's parameters.
+
+        Return:
+            int
+                Id of the last record inserted.
+        """
+
         self.c.executemany(query, data)
         self.conn.commit()
 
+        return self.c.lastrowid
+
     def close(self):
+        """Close connection to database."""
+
         self.c.close()
         self.conn.close()
 
 
 class Xark:
+    """
+    Xark class for extract device info from xo laptop.
+
+    Methods:
+        addFirst(data, item)
+        collection()
+        extracData()
+        extracJournal()
+        extracLogs()
+        getActivityHistory()
+        getArch()
+        getDailyId()
+        getInfoJournal(dir)
+        getMac()
+        getRam()
+        getRom()
+        getSerial()
+        getKernel()
+        readFile(self, file_dir, file_name)
+        synchrome()
+    """
+
     def __init__(self):
         self.db = Conexion()
         # Fecha actual en entero
@@ -521,3 +619,12 @@ if __name__ == "__main__":
         print(e)
         cath_Exception(e)
         sys.exit(1)
+
+#    ___    ___ ________  ________  ___  __
+#   |\  \  /  /|\   __  \|\   __  \|\  \|\  \
+#   \ \  \/  / | \  \|\  \ \  \|\  \ \  \/  /|_
+#    \ \    / / \ \   __  \ \   _  _\ \   ___  \
+#     /     \/   \ \  \ \  \ \  \\  \\ \  \\ \  \
+#    /  /\   \    \ \__\ \__\ \__\\ _\\ \__\\ \__\
+#   /__/ /\ __\    \|__|\|__|\|__|\|__|\|__| \|__|
+#   |__|/ \|__| Baby SAHRK hunting for device information without supervision.
