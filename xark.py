@@ -42,8 +42,6 @@ class Conexion:
     """
     Connection class to sqlite3.
 
-    ...
-
     Methods:
         get(query, data)
             Get a record from database.
@@ -142,39 +140,26 @@ class Xark:
     """
     Xark class for extract device info from xo laptop.
 
-    ...
-
     Methods:
-        getDailyId(self)
-        getSerial(self)
-        addFirst(self, data, item)
-        readFile(self, file_dir, file_name)
-        getInfoJournal(self, dir)
+        addFirst(data, item)
+        collection()
+        extracData()
         extracJournal()
+        extracLogs()
         getActivityHistory()
+        getArch()
+        getDailyId()
+        getInfoJournal(dir)
+        getMac()
         getRam()
         getRom()
+        getSerial()
         getKernel()
-        getArch()
-        getMac()
-        extracData()
-        extracLogs()
-        collection()
+        readFile(self, file_dir, file_name)
         synchrome()
     """
 
     def __init__(self):
-        """
-        Parameters
-        ----------
-        name : str
-            The name of the animal
-        sound : str
-            The sound the animal makes
-        num_legs : int, optional
-            The number of legs the animal (default is 4)
-        """
-
         self.db = Conexion()
         # Fecha actual en entero
         self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
