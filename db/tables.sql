@@ -26,7 +26,7 @@ CREATE TABLE xk_journal_xo(
 	launch_times VARCHAR NOT NULL,
 	mime_type VARCHAR NOT NULL,
 	mountpoint VARCHAR NOT NULL,
-	mtime VARCHAR NOT NULL,
+	mtime TIMESTAMP NOT NULL,
 	share_scope VARCHAR NOT NULL,
 	spent_times VARCHAR NOT NULL,
 	time_stamp VARCHAR NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE xk_excepts(
     except_code VARCHAR NOT NULL,
 	tb_except VARCHAR NOT NULL,
     server_name VARCHAR NOT NULL,
-    user_name VARCHAR NOT NULL,
+    user_name VARCHAR,
 	create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

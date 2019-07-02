@@ -557,7 +557,7 @@ def cath_Exception(tb_except):
     except_code = tbinfo.split(",")[2].strip()
 
     Conexion().set(
-        "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, server_name) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name) VALUES(?, ?, ?, ?, ?, ?, ?)",
         [
             (except_type.replace("'", '"')),
             (str(except_message).replace("'", '"')),
@@ -566,7 +566,6 @@ def cath_Exception(tb_except):
             (except_code.replace("'", '"')),
             (str(tb_except).replace("'", '"')),
             (os.environ["USER"].replace("'", '"')),
-            (os.uname()[1].replace("'", '"')),
         ],
     )
 
