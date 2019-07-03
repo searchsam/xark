@@ -384,7 +384,6 @@ class Xark:
         return arch
 
     def getMac(self):
-        iface = "wlp2s0"
         mac = subprocess.Popen(
             "cat /sys/class/net/{}/address".format(self.iface),
             shell=True,
