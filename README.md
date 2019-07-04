@@ -151,6 +151,7 @@ Indicadores:                         fpu vme de pse tsc msr pae mce cx8 apic sep
 ### MAC
 
 ```bash
+$ export IFACE=eth0
 $ cat /sys/class/net/$IFACE/address
 e4:70:b8:cf:51:f7
 ```
