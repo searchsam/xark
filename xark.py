@@ -145,6 +145,7 @@ class Xark:
         addFirst(data, item)
         collection()
         extracData()
+        extracExcepts()
         extracJournal()
         extracLogs()
         getActivityHistory()
@@ -160,7 +161,7 @@ class Xark:
         synchrome()
     """
 
-    def __init__(self):
+    def __init__(self, server, user, iface, w_dir):
         self.db = Conexion()
         # Fecha actual en entero
         self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
@@ -183,7 +184,12 @@ class Xark:
             self.dayid = self.getDailyId()
 
         # Directorio de metadata del Diario
-        self.work_dir = "~/.sugar/default/datastore/"
+        self.j_dir = w_dir + ".sugar/default/datastore/"
+        # Indentificacion del servidor
+        self.server = server
+        self.user = user
+        self.iface = iface
+        self.w_dir = w_dir
         # Programador de frecuencia de peticiones
         self.s = sched.scheduler(time.time, time.sleep)
 
@@ -275,7 +281,7 @@ class Xark:
             "ds_clean",
         ]:
             in_dir = subprocess.Popen(
-                "ls -d {}{}/*".format(self.work_dir, dir),
+                "ls -d {}{}/*".format(self.j_dir, dir),
                 shell=True,
                 stdout=subprocess.PIPE,
             ).stdout.readlines()
@@ -292,7 +298,7 @@ class Xark:
             list: Lista de contenidos de cada archivo de metadata.
         """
         salida = subprocess.Popen(
-            "ls {}".format(self.work_dir), shell=True, stdout=subprocess.PIPE
+            "ls {}".format(self.j_dir), shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
         salida = list(x.strip() for x in salida)
         info = map(lambda x: self.getInfoJournal(x), salida)
@@ -303,7 +309,9 @@ class Xark:
     def getActivityHistory(self):
         lista = ""
         salida = subprocess.Popen(
-            "ls ~/Activities/", shell=True, stdout=subprocess.PIPE
+            "ls {}Activities/".format(self.w_dir),
+            shell=True,
+            stdout=subprocess.PIPE,
         ).stdout.readlines()
         for i, v in enumerate(salida):
             if i < len(salida) - 1:
@@ -409,6 +417,11 @@ class Xark:
 
         return True
 
+    def extracExcepts(self):
+        print(True)
+
+        return True
+
     def collection(self):
         """Recolectar informacion de la laptop xo.
         Returns:
@@ -452,13 +465,6 @@ class Xark:
     def synchrome(self):
         """Sincronizar con el charco."""
 
-        # Obtener las configuraciones desde config.json
-        with open("config.json") as json_data_file:
-            data = json.load(json_data_file)
-
-        server = data["host"]
-        user = data["user"]
-
         response = self.db.get(
             "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?",
             [(self.day)],
@@ -470,9 +476,9 @@ class Xark:
         # Verifica si el IIAB esta disponible
         request_url = (
             'curl -o /dev/null -w "%{http_code}\\n" -X POST '
-            + server
+            + self.server
             + ' -d "user='
-            + user
+            + self.user
             + "&client_id="
             + self.serialnum
             + "&client_secret="
@@ -514,10 +520,10 @@ class Xark:
                 + ":"
                 + self.uuid
                 + ' -o /dev/null -w "%{http_code}\\n" -X POST '
-                + server
+                + self.server
                 + "data -d "
                 + '"grant_type=password&username='
-                + user
+                + self.user
                 + '&password=valid&scope=profile&data={}"'.format(data)
             )
             result = subprocess.Popen(
@@ -580,8 +586,14 @@ if __name__ == "__main__":
     )
 
     try:
+        # Obtener las configuraciones desde config.json
+        with open("config.json") as config_file:
+            config = json.load(config_file)
+
         # Instancia del Kaibil
-        xark = Xark()
+        xark = Xark(
+            config["host"], config["user"], config["iface"], config["w_dir"]
+        )
 
         # Verifica si el dia de la semana es entre lunes y viernes
         if (
