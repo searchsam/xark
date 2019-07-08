@@ -60,7 +60,6 @@ CREATE TABLE xk_excepts(
     file_line VARCHAR NOT NULL,
     except_code VARCHAR NOT NULL,
 	tb_except VARCHAR NOT NULL,
-    server_name VARCHAR NOT NULL,
     user_name VARCHAR,
 	create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

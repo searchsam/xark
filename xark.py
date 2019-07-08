@@ -151,7 +151,7 @@ class Xark:
         getActivityHistory()
         getArch()
         getDailyId()
-        getInfoJournal(dir)
+        F(dir)
         getMac()
         getRam()
         getRom()
@@ -436,6 +436,12 @@ class Xark:
             # Termina la funcion.
             return bool(int(response[0]))
 
+        # Extraer informacion del diario.
+        journal = self.extracJournal()
+        self.db.setmany(
+            "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            journal,
+        )
         # Extraer informacion del dispocitivo
         data = self.extracData()
         self.db.set(
@@ -492,27 +498,46 @@ class Xark:
         if code == 200 and bool(int(response[1])):
             data = dict()
 
+            status = self.db.get(
+                "SELECT date_print, collect_status, collect_date, create_at, update_at FROM xk_status WHERE id_status = ?",
+                [(self.dayid)],
+            )
+            if status is not None:
+                data["status"] = list(str(i).encode() for i in status)
+            else:
+                data["status"] = list(list(map("Empty", range(5))))
+
             journal = self.db.getmany(
-                "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid FROM xk_journal_xo WHERE xark_status_id = ?",
+                "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid, create_at, update_at FROM xk_journal_xo WHERE xark_status_id = ?",
                 [(self.dayid)],
             )
             if journal is not None:
                 data["journal"] = list(
-                    list(i.encode() for i in x) for x in journal
+                    list(str(i).encode() for i in x) for x in journal
                 )
             else:
-                data["journal"] = list(list(map("Empty", range(17))))
+                data["journal"] = None
 
-            device = self.db.getmany(
-                "SELECT activities_history, ram, rom, kernel, arqc, mac FROM xk_data_xo WHERE xark_status_id = ?",
+            device = self.db.get(
+                "SELECT activities_history, ram, rom, kernel, arqc, mac, create_at, update_at FROM xk_data_xo WHERE xark_status_id = ?",
                 [(self.dayid)],
             )
             if device is not None:
-                data["device"] = list(
-                    list(i.encode() for i in x) for x in device
+                data["device"] = list(str(i).encode() for i in device)
+            else:
+                data["device"] = None
+
+            excepts = self.db.getmany(
+                "SELECT except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, create_at, update_at FROM xk_excepts WHERE ?",
+                [(1)],
+            )
+            print(excepts)
+            if excepts is not None:
+                data["excepts"] = list(
+                    list(str(i).encode() for i in x) for x in excepts
                 )
             else:
-                data["device"] = list(list(map("Empty", range(6))))
+                data["excepts"] = None
 
             request_url = (
                 "curl -u "
@@ -524,6 +549,8 @@ class Xark:
                 + "data -d "
                 + '"grant_type=password&username='
                 + self.user
+                + "&client="
+                + self.serialnum
                 + '&password=valid&scope=profile&data={}"'.format(data)
             )
             result = subprocess.Popen(
