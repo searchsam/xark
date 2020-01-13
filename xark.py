@@ -23,36 +23,63 @@ import traceback
 import subprocess
 import multiprocessing
 
+__author__ = "Samuel Gutierrex <search.sama@gmail.com>"
+__version__ = "1.0.1"
+
+# Constants
+MONDAY = 0
+FRIDAY = 4
+START_DAY_TIME = datetime.time(6, 0)
+END_DAY_TIME = datetime.time(18, 0)
+DB_NAME = "main.db"
+JOURNAL_METADATA_DIR = "~/.sugar/default/datastore/"
+
 # Logging setting
 logger = logging.getLogger("xark")
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)-s - %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)-s - %(message)s")
 handler = logging.FileHandler(filename="xark.log", mode="a")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 
+def getCurrentDayOfWeek(format=None):
+    dayOfWeek = datetime.datetime.now().weekday()
+    if format is not None:
+        return dayOfWeek.strftime(format)
+
+    return dayOfWeek
+
+
+def getCurrentTime(format=None):
+    dayTime = datetime.datetime.now().time()
+    if format is not None:
+        return dayTime.strftime(format)
+
+    return dayTime
+
+
 class Conexion:
+    """Connection to SQLite DB"""
+
     def __init__(self):
-        self.conn = sqlite3.connect("main.db")
+        self.conn = sqlite3.connect(DB_NAME)
         self.c = self.conn.cursor()
 
-    def get(self, query, data):
-        return self.c.execute(query, data).fetchone()
+    def get(self, queryString, dataList):
+        return self.c.execute(queryString, dataList).fetchone()
 
-    def getmany(self, query, data):
-        return self.c.execute(query, data).fetchall()
+    def getmany(self, queryString, dataList):
+        return self.c.execute(queryString, dataList).fetchall()
 
-    def set(self, query, data):
-        self.c.execute(query, data)
+    def set(self, queryString, dataList):
+        self.c.execute(queryString, dataList)
         self.conn.commit()
 
         return self.c.lastrowid
 
-    def setmany(self, query, data):
-        self.c.executemany(query, data)
+    def setmany(self, queryString, dataList):
+        self.c.executemany(queryString, dataList)
         self.conn.commit()
 
     def close(self):
@@ -61,19 +88,23 @@ class Conexion:
 
 
 class Xark:
+    """XARK Class - Get data from XO laptop"""
+
     def __init__(self):
+        # DB Connection
         self.db = Conexion()
-        # Fecha actual en entero
+        # Get status date print (integer current date)
         self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
-        # Obtenr el identificador de la laptop
+        # Get the laptop ID (laptio serial number)
         id = self.getSerial()
         self.serialnum = id["serialnum"]
         self.uuid = id["uuid"]
-        # Verificar estado diario del kaibil
+        # Check kaibil daily status
         self.dayid = None
         response = self.db.get(
             "SELECT * FROM xk_status WHERE date_print = ?", [(self.day)]
         )
+
         if response is None:
             self.dayid = self.db.set(
                 "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)",
@@ -82,42 +113,50 @@ class Xark:
         else:
             self.dayid = self.getDailyId()
 
-        # Directorio de metadata del Diario
-        self.work_dir = "~/.sugar/default/datastore/"
-        # Programador de frecuencia de peticiones
+        # Journal metadata directory
+        self.work_dir = JOURNAL_METADATA_DIR
+        # Request Frequency Scheduler
         self.s = sched.scheduler(time.time, time.sleep)
 
     def getDailyId(self):
+        """Get daily ID from DB if exist.
+
+        Returns:
+            int: Daily status id."""
         response = self.db.get(
-            "SELECT id_status FROM xk_status WHERE date_print = ?",
-            [(self.day)],
+            "SELECT id_status FROM xk_status WHERE date_print = ?", [(self.day)],
         )
 
         return int(response[0])
 
     def getSerial(self):
-        """Capturar Numero de serie y UUID"""
+        """Get Serial Number and UUID
+
+        Returns:
+            dict: A dict with Serial Number and UUID on it."""
         data = dict()
-        f = open("/home/.devkey.html", "r")
-        for value in f:
+        file = open("/home/.devkey.html", "r")
+
+        def geyDevkeyPosition(self, devkey, index):
+            return devkey[index].split("=")[1].replace('"', "")
+
+        for value in file:
             if "serialnum" in value or "uuid" in value:
                 value = value.strip().split(" ")
-                data[value[2].split("=")[1].replace('"', "")] = (
-                    value[3].split("=")[1].replace('"', "")
-                )
+                data[geyDevkeyPosition(value, 2)] = geyDevkeyPosition(value, 3)
 
         return data
 
     def addFirst(self, data, item):
-        """Agrega un elemento a un tupla a inicio de la tupla.
+        """Add item to tuple at beginning of tuple.
         Args:
-            data (tuplr): Tupla a la que se agregara el elemento.
-            item (str): Elemento que se agregara a la tupla.
+            data (tuple): Tuple to the item is added.
+            item (str): Element to added at tuple.
         Returns:
-            tuple: Tupla con el item agregado al inicio.
+            tuple: Tuple with the item added at beginning.
         """
-        tmp_list = list(data)
-        tmp_list.insert(0, item)
+        tmpList = list(data)
+        tmpList.insert(0, item)
 
         return tuple(tmp_list)
 
@@ -131,8 +170,8 @@ class Xark:
         """
         contents = ""
         if os.path.isfile("{}/metadata/{}".format(file_dir, file_name)):
-            f = open("{}/metadata/{}".format(file_dir, file_name), "r")
-            contents = f.read()
+            file = open("{}/metadata/{}".format(file_dir, file_name), "r")
+            contents = file.read()
             if contents is None or contents == "":
                 contents = "Empty"
         else:
@@ -179,9 +218,7 @@ class Xark:
                 shell=True,
                 stdout=subprocess.PIPE,
             ).stdout.readlines()
-            info = tuple(
-                map(lambda x: self.readFile(in_dir[0].strip(), x), data_name)
-            )
+            info = tuple(map(lambda x: self.readFile(in_dir[0].strip(), x), data_name))
             info = self.addFirst(info, self.dayid)
 
             return info
@@ -276,10 +313,7 @@ class Xark:
         arch = arch + "|"
         arch = arch + re.sub(r"\s+", " ", salida[4].strip()).split(" ")[1]
         arch = arch + "|"
-        arch = (
-            arch
-            + re.sub(r"\s+", " ", salida[13].strip()).split(":")[1].strip()
-        )
+        arch = arch + re.sub(r"\s+", " ", salida[13].strip()).split(":")[1].strip()
 
         return arch
 
@@ -316,8 +350,7 @@ class Xark:
             bool: True/False.
         """
         response = self.db.get(
-            "SELECT collect_status FROM xk_status WHERE date_print = ?",
-            [(self.day)],
+            "SELECT collect_status FROM xk_status WHERE date_print = ?", [(self.day)],
         )
         if bool(int(response[0])):
             # La informacion para el dia ya se ha rocolectado.
@@ -343,8 +376,7 @@ class Xark:
             [(self.dayid)],
         )
         response_d = self.db.get(
-            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?",
-            [(self.dayid)],
+            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?", [(self.dayid)],
         )
         if int(response_j[0]) >= 1 and int(response_d[0]) >= 1:
             # Estado de sincronizacion en `Sincronizado`
@@ -386,9 +418,7 @@ class Xark:
                 [(self.dayid)],
             )
             if journal is not None:
-                data["journal"] = list(
-                    list(i.encode() for i in x) for x in journal
-                )
+                data["journal"] = list(list(i.encode() for i in x) for x in journal)
             else:
                 data["journal"] = list(list(map("Empty", range(17))))
 
@@ -397,9 +427,7 @@ class Xark:
                 [(self.dayid)],
             )
             if device is not None:
-                data["device"] = list(
-                    list(i.encode() for i in x) for x in device
-                )
+                data["device"] = list(list(i.encode() for i in x) for x in device)
             else:
                 data["journal"] = list(list(map("Empty", range(6))))
 
@@ -464,49 +492,38 @@ def cath_Exception(tb_except):
 
 
 if __name__ == "__main__":
-    """Flujo prinvipal de ejecucion."""
+    """Main flow of execution."""
 
-    # Log de inicio diario
+    # Daily Start Log
     logger.info(
-        "Inicio de la ejecucion del dia {}".format(datetime.datetime.now())
+        "{} - start execution.".format(getCurrentDayOfWeek("%B %d %Y %A %H:%M:%S"))
     )
 
     try:
-        # Instancia del Kaibil
+        # Kaibil Instance
         xark = Xark()
 
-        # Verifica si el dia de la semana es entre lunes y viernes
-        if (
-            datetime.datetime.now().weekday() >= 0
-            and datetime.datetime.now().weekday() <= 4
-        ):
-            # Verifica que la hora del dia sea entre las 6:00 y las 18:00
-            if datetime.datetime.now().time() >= datetime.time(
-                6, 0
-            ) and datetime.datetime.now().time() <= datetime.time(18, 0):
-                # Recolectar informacion
-                multiprocessing.Process(
-                    target=xark.collection, args=()
-                ).start()
-                # Sincronizar con el charco
+        if getCurrentDayOfWeek() >= MONDAY and getCurrentDayOfWeek() <= FRIDAY:
+            if getCurrentTime() >= START_DAY_TIME and getCurrentTime() <= END_DAY_TIME:
+                # Collect information
+                multiprocessing.Process(target=xark.collection, args=()).start()
+                # Synchronize puddle
                 multiprocessing.Process(target=xark.synchrome, args=()).start()
 
-                # close connection
+                # Close Connection
                 Conexion().close()
             else:
                 logger.info(
-                    "Hora del dia {} fuera del rango 6:00 a 18:00".format(
-                        datetime.datetime.now().time()
+                    "Time of day {} out of range 6:00 to 18:00.".format(
+                        getCurrentTime("%H:%M:%S")
                     )
                 )
-
         else:
             logger.info(
-                "Dia de la semana {} no de lunes a viernes".format(
-                    datetime.datetime.now().weekday()
+                "Day of the week {} not Monday through Friday.".format(
+                    getCurrentDayOfWeek("%A")
                 )
             )
-
     except Exception() as e:
         logger.error("Exception: {}".format(e))
         print(e)

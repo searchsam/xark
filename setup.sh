@@ -1,4 +1,4 @@
-#!/bin/#!/bin/sh
+#!/bin/sh
 
 if [ -f ./main.db ];
 then
