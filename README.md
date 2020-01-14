@@ -21,12 +21,6 @@ Data extracted from the OX laptop.
 ```
 
 ```text
-# XARK
-
-Baby SAHRK hunting for device information without supervision.
-
-## Data
-
 Data extracted from the OX laptop.
 
 - Número de serie (Serial Number)
