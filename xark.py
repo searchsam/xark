@@ -4,15 +4,15 @@
 """XO Agil Recolector Kaibil - XARK
 
 Internal information collector of the XO. Currently collects:
-    * Serial Number
-    * UUID
     * Installed Activities
     * Journal Activity Metadata
+    * Kernel
+    * MAC
+    * Procesor Architecture
     * RAM
     * ROM
-    * Kernel
-    * Procesor Architecture
-    * MAC
+    * Serial Number
+    * UUID
 """
 
 import os
@@ -48,6 +48,12 @@ APP_NAME = "XARK"
 DEVELOP_ID_FILE = "/home/.devkey.html"
 ROOT_POSITION = 0
 FIRST_POSITION = 1
+
+# Queries
+SELECT_DAILY_DATEPRINT = "SELECT id_status FROM xk_status WHERE date_print = ?"
+INSERT_INTO_XK_STATUS = (
+    "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)"
+)
 
 # Logging setting
 logger = logging.getLogger(APP_NAME.lower())
@@ -177,7 +183,7 @@ class Xark:
     Xark class for extract device info from xo laptop.
 
     Methods:
-        addFirst(data, item)
+        addOnFirstPos()
         collection()
         extracData()
         extracExcepts()
@@ -186,7 +192,7 @@ class Xark:
         getActivityHistory()
         getArch()
         getDailyId()
-        getFileInfo(dir)
+        getFileContent()
         getMac()
         getRam()
         getRom()
@@ -197,24 +203,21 @@ class Xark:
     """
 
     def __init__(self, serverName, userName, networkIface, workingDir):
-        # DB Connection
+        # DB Connection class
         self.db = Conexion()
         # Get status date print (integer current date)
-        self.day = int(datetime.datetime.now().strftime("%Y%m%d"))
+        self.day = getDatePrint()
         # Get Laptop identifier
         id = self.getXOIdentifier()
         self.serialNumber = id["serialnum"]
         self.uuid = id["uuid"]
         # Check kaibil daily status
         self.dayId = None
-        response = self.db.get(
-            "SELECT * FROM xk_status WHERE date_print = ?", [(self.day)]
-        )
+        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)])
 
         if response is None:
             self.dayId = self.db.set(
-                "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)",
-                [(self.serialNumber), (self.uuid), (self.day)],
+                INSERT_INTO_XK_STATUS, [(self.serialNumber), (self.uuid), (self.day)],
             )
         else:
             self.dayId = self.getDailyId()
@@ -229,14 +232,19 @@ class Xark:
         # Request Frequency Scheduler
         self.scheduler = sched.scheduler(time.time, time.sleep)
 
+    def getDatePrint(self):
+        """Get the date of current day on int.
+
+        Returns:
+            int: Date on int."""
+        return int(datetime.datetime.now().strftime("%Y%m%d"))
+
     def getDailyId(self):
         """Get daily ID from DB if exist.
 
         Returns:
             int: Daily status id."""
-        response = self.db.get(
-            "SELECT id_status FROM xk_status WHERE date_print = ?", [(self.day)],
-        )
+        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)],)
 
         return int(response[ROOT_POSITION])
 
@@ -258,30 +266,30 @@ class Xark:
 
         return dataDict
 
-    def addFirst(self, data, item):
+    def addOnFirstPosition(self, tupleData, newItem):
         """Add item to tuple at beginning of tuple.
 
         Args:
-            data (tuple): Tuple to the item is added.
-            item (str): Element to added at tuple.
+            tupleData (tuple): Tuple to the item is added.
+            newItem (str): Element to added at tuple.
 
         Returns:
             tuple: Tuple with the item added at beginning.
         """
-        tmp_list = list(data)
-        tmp_list.insert(0, item)
+        tmpList = list(tupleData)
+        tmpList.insert(ROOT_POSITION, newItem)
 
-        return tuple(tmp_list)
+        return tuple(tmpList)
 
     def readFile(self, filePath, fileName):
-        """Lee el contenido de archivo de metadata.
+        """Read the metadata file content.
 
         Args:
-            file_dir (str): Ruta al directorio de metadata.
-            file_name (str): Nombre del archivo a leer.
+            filePath (str): Path to the metadata directory.
+            fileName (str): File name to read.
 
         Returns:
-            dict: Nombre del archivo: Contenido del archivo.
+            dict: (File Name, File Content).
         """
         contents = ""
         if os.path.isfile("{}/metadata/{}".format(filePath, fileName)):
@@ -294,14 +302,14 @@ class Xark:
 
         return contents
 
-    def getFileInfo(self, fullFilePath):
-        """Lista cada archivo existente en el directorio de metadata.
+    def getFileContent(self, fullFilePath):
+        """List each existing file in the metadata directory.
 
         Args:
-            dir (str): Ruta al directorio de metadata.
+            fullFilePath (str): Path to the metadata directory.
 
         Returns:
-            list: Lista de contenidos del diccionario.
+            list: List of dictionary contents.
         """
         journalFiles = [
             "activity",
@@ -348,21 +356,26 @@ class Xark:
         return None
 
     def extracJournal(self):
-        """Extrae la informacion de metadata del diaro.
+        """Extract diary metadata information.
 
         Returns:
-            list: Lista de contenidos de cada archivo de metadata.
+            list: List of contents of each metadata file.
         """
         fileList = subprocess.Popen(
             "ls {}".format(self.journalDir), shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
         fileList = list(file.strip() for file in fileList)
-        infoPerFile = map(lambda file: self.getFileInfo(file), fileList)
+        infoPerFile = map(lambda file: self.getFileContent(file), fileList)
         infoPerFile = filter(lambda fileInfo: fileInfo, infoPerFile)
 
         return infoPerFile
 
     def getActivityHistory(self):
+        """extra activity history information.
+
+        Returns:
+            str: History content.
+        """
         historyContent = ""
         activitiesList = subprocess.Popen(
             "ls {}Activities/".format(self.workingDir),
@@ -385,21 +398,20 @@ class Xark:
         ramValuesList = re.sub(r"\s+", " ", freeOutput[1])
         swapValuesList = re.sub(r"\s+", " ", freeOutput[2])
 
-        for enumerator, ramValue in enumerate(ramValuesList.strip().split(" ")):
-            if enumerator > 0 and enumerator <= 3:
-                if enumerator < 3:
-                    Memory = Memory + ramValue + ","
-                else:
-                    Memory = Memory + ramValue
+        def concatIterator(self, iteratorList):
+            concatChain = Memory
+            for enumerator, concatValue in enumerate(iteratorList.strip().split(" ")):
+                if enumerator > 0 and enumerator <= 3:
+                    if enumerator < 3:
+                        concatChain = concatChain + concatValue + ","
+                    else:
+                        concatChain = concatChain + concatValue
 
+            return concatChain
+
+        Memory = concatIterator(ramValuesList)
         Memory = Memory + "|"
-
-        for enumerator, swapValue in enumerate(swapValuesList.strip().split(" ")):
-            if enumerator > 0 and enumerator <= 3:
-                if i < 3:
-                    Memory = Memory + swapValue + ","
-                else:
-                    Memory = Memory + swapValue
+        Memory = concatIterator(swapValuesList)
 
         return Memory
 
