@@ -1,6 +1,24 @@
-# Initial page
+---
+description: Baby SAHRK hunting for device information without supervision.
+---
+
+# XARK
+
+### Data
 
 
+
+```text
+Data extracted from the OX laptop.
+```
+
+```text
+Data extracted from the OX laptop.
+```
+
+```text
+Data extracted from the OX laptop.
+```
 
 ```text
 # XARK
