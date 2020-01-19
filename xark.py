@@ -48,11 +48,31 @@ APP_NAME = "XARK"
 DEVELOP_ID_FILE = "/home/.devkey.html"
 ROOT_POSITION = 0
 FIRST_POSITION = 1
+SECOND_POSITION = 2
 
 # Queries
 SELECT_DAILY_DATEPRINT = "SELECT id_status FROM xk_status WHERE date_print = ?"
+SELECT_COLLECT_STATUS = "SELECT collect_status FROM xk_status WHERE date_print = ?"
+SELECT_COUNT_JOURNAL = "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?"
+SELECT_COUNT_DATA = "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?"
+SELECT_SYNC_STATUS = (
+    "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?"
+)
+SELECT_DATA_STATUS = "SELECT date_print, collect_status, collect_date, create_at, update_at FROM xk_status WHERE id_status = ?"
+SELECT_JOURNAL_DATA = "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid, create_at, update_at FROM xk_journal_xo WHERE xark_status_id = ?"
+SELECT_DEVICE_DATA = "SELECT activities_history, ram, rom, kernel, arqc, mac, create_at, update_at FROM xk_data_xo WHERE xark_status_id = ?"
+SELECT_EXCEPTIONS_DATA = "SELECT except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, create_at, update_at FROM xk_excepts WHERE ?"
 INSERT_INTO_XK_STATUS = (
     "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)"
+)
+INSER_INTO_XK_JOURNAL_XO = "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+INSER_INTO_XK_DATA_OX = "INSERT INTO xk_data_xo(xark_status_id, activities_history, ram, rom, kernel, arqc, mac) VALUES(?, ?, ?, ?, ?, ?, ?)"
+INSERT_INTO_XK_EXCPTS = "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name) VALUES(?, ?, ?, ?, ?, ?, ?)"
+UPDATE_STATUS_COLLECT = (
+    "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?"
+)
+UPDATE_SYNC_STATUS = (
+    "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?"
 )
 
 # Logging setting
@@ -183,7 +203,7 @@ class Xark:
     Xark class for extract device info from xo laptop.
 
     Methods:
-        addOnFirstPos()
+        addOnFirstPosition()
         collection()
         extracData()
         extracExcepts()
@@ -192,13 +212,14 @@ class Xark:
         getActivityHistory()
         getArch()
         getDailyId()
+        getDatePrint()
         getFileContent()
         getMac()
         getRam()
         getRom()
         getXOIdentifier()
         getKernel()
-        readFile(self, file_dir, file_name)
+        readFile()
         synchrome()
     """
 
@@ -213,11 +234,12 @@ class Xark:
         self.uuid = id["uuid"]
         # Check kaibil daily status
         self.dayId = None
-        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)])
+        response = self.db.get(SELECT_DAILY_DATEPRINT, list((self.day)))
 
         if response is None:
             self.dayId = self.db.set(
-                INSERT_INTO_XK_STATUS, [(self.serialNumber), (self.uuid), (self.day)],
+                INSERT_INTO_XK_STATUS,
+                list((self.serialNumber), (self.uuid), (self.day)),
             )
         else:
             self.dayId = self.getDailyId()
@@ -244,7 +266,7 @@ class Xark:
 
         Returns:
             int: Daily status id."""
-        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)],)
+        response = self.db.get(SELECT_DAILY_DATEPRINT, list((self.day)),)
 
         return int(response[ROOT_POSITION])
 
@@ -256,7 +278,7 @@ class Xark:
         dataDict = dict()
         file = open(DEVELOP_ID_FILE, "r")
 
-        def geyDevKeyValue(self, devkeyTag, index):
+        def geyDevKeyValue(devkeyTag, index):
             return devkeyTag[index].split("=")[FIRST_POSITION].replace('"', "")
 
         for tag in file:
@@ -291,16 +313,15 @@ class Xark:
         Returns:
             dict: (File Name, File Content).
         """
-        contents = ""
+        file = None
         if os.path.isfile("{}/metadata/{}".format(filePath, fileName)):
-            file = open("{}/metadata/{}".format(filePath, fileName), "r")
-            contents = file.read()
-            if contents is None or contents == "":
-                contents = "Empty"
+            file = open("{}/metadata/{}".format(filePath, fileName), "r").read()
+            if file is None or file == "":
+                return "Empty"
         else:
-            contents = "Empty"
+            return "Empty"
 
-        return contents
+        return file
 
     def getFileContent(self, fullFilePath):
         """List each existing file in the metadata directory.
@@ -311,7 +332,7 @@ class Xark:
         Returns:
             list: List of dictionary contents.
         """
-        journalFiles = [
+        journalFiles = list(
             "activity",
             "activity_id",
             "checksum",
@@ -329,15 +350,11 @@ class Xark:
             "title",
             "title_set_by_user",
             "uid",
-        ]
+        )
 
-        if fullFilePath not in [
-            "index",
-            "checksums",
-            "index_updated",
-            "version",
-            "ds_clean",
-        ]:
+        if fullFilePath not in list(
+            "index", "checksums", "index_updated", "version", "ds_clean",
+        ):
             onDir = subprocess.Popen(
                 "ls -d {}{}/*".format(self.journalDir, fullFilePath),
                 shell=True,
@@ -349,9 +366,8 @@ class Xark:
                     journalFiles,
                 )
             )
-            fileContent = self.addFirst(fileContent, self.dayId)
 
-            return fileContent
+            return self.addFirst(fileContent, self.dayId)
 
         return None
 
@@ -366,106 +382,160 @@ class Xark:
         ).stdout.readlines()
         fileList = list(file.strip() for file in fileList)
         infoPerFile = map(lambda file: self.getFileContent(file), fileList)
-        infoPerFile = filter(lambda fileInfo: fileInfo, infoPerFile)
+        infoPerFile = list(filter(lambda fileInfo: fileInfo, infoPerFile))
 
         return infoPerFile
 
     def getActivityHistory(self):
-        """extra activity history information.
+        """Extract activity history information.
 
         Returns:
             str: History content.
         """
         historyContent = ""
-        activitiesList = subprocess.Popen(
+        activityList = subprocess.Popen(
             "ls {}Activities/".format(self.workingDir),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
-        for enumerator, activity in enumerate(activitiesList):
-            if enumerator < len(activitiesList) - 1:
-                historyContent += activity.strip() + ","
-            else:
-                historyContent += activity.strip()
+        amount = len(activityList) - 1
 
-        return historyContent
+        return ",".join(
+            list(
+                activity
+                for activity in activityList
+                if activityList.index(activity) < amount
+            )
+        )
 
     def getRam(self):
-        Memory = ""
+        """Get RAM mesure.
+
+        Returns:
+            str: RAM mesure on bytes.
+        """
+        memAmount = ""
         freeOutput = subprocess.Popen(
             "free -m", shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
         ramValuesList = re.sub(r"\s+", " ", freeOutput[1])
-        swapValuesList = re.sub(r"\s+", " ", freeOutput[2])
+        swapValuesList = re.sub(r"\s+", " ", freeOutput[SECOND_POSITION])
 
-        def concatIterator(self, iteratorList):
-            concatChain = Memory
-            for enumerator, concatValue in enumerate(iteratorList.strip().split(" ")):
-                if enumerator > 0 and enumerator <= 3:
-                    if enumerator < 3:
-                        concatChain = concatChain + concatValue + ","
-                    else:
-                        concatChain = concatChain + concatValue
+        def concatIterator(iteratorList):
+            concatChain = iteratorList.strip().split(" ")
+            concatChain = list(
+                filter(
+                    lambda item: concatChain.index(item) > 0
+                    and concatChain.index(item) <= 3,
+                    concatChain,
+                )
+            )
+            amount = len(concatChain) - 1
 
-            return concatChain
+            return ",".join(
+                list(
+                    shackle
+                    for shackle in concatChain
+                    if concatChain.index(shackle) < amount
+                )
+            )
 
-        Memory = concatIterator(ramValuesList)
-        Memory = Memory + "|"
-        Memory = concatIterator(swapValuesList)
+        memAmount = concatIterator(ramValuesList)
+        memAmount = memAmount + "|"
+        memAmount = memAmount = concatIterator(swapValuesList)
 
-        return Memory
+        return memAmount
 
     def getRom(self):
-        rom = ""
-        salida = subprocess.Popen(
+        """Get ROM mesure.
+
+        Returns:
+            str: ROM mesure on bytes.
+        """
+        diskSpace = ""
+        dfOutput = subprocess.Popen(
             "df -H --output=source,size,used,avail,target",
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
-        for i in salida:
-            dir = re.sub(r"\s+", " ", i.strip())
-            if "/dev/" in dir.split(" ")[0]:
-                for x, y in enumerate(dir.split(" ")):
-                    if x > 0 and x <= 4:
-                        if x < 4:
-                            rom = rom + y + ","
-                        else:
-                            rom = rom + y
-                rom = rom + "|"
-        rom = rom[:-1]
+        for column in dfOutput:
+            field = re.sub(r"\s+", " ", column.strip()).split(" ")
+            if "/dev/" in field[0]:
+                field = list(
+                    filter(
+                        lambda item: field.index(item) > 0 and field.index(item) <= 4,
+                        field,
+                    )
+                )
+                amount = len(field) - 1
+                diskSpace = ",".join(
+                    list(item for item in field if field.index(item) < amount)
+                )
+                diskSpace = diskSpace + "|"
 
-        return rom
+        return diskSpace[:-1]
 
     def getKernel(self):
+        """Get Kernel settings.
+
+        Returns:
+            str: Kernel settings.
+        """
         kernel = subprocess.Popen(
             "uname -a", shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
-        kernel = kernel[ROOT_POSITION].strip().split("#")[ROOT_POSITION].strip()
-        return kernel
+
+        return kernel[ROOT_POSITION].strip().split("#")[ROOT_POSITION].strip()
 
     def getArch(self):
+        """Get system architecture
+
+        Returns:
+            str: Architecture system settings.
+        """
         arch = ""
-        salida = subprocess.Popen(
+        lscpuOutput = subprocess.Popen(
             "lscpu", shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
-        arch = arch + re.sub(r"\s+", " ", salida[0].strip()).split(" ")[1]
+        arch = (
+            arch
+            + re.sub(r"\s+", " ", lscpuOutput[0].strip()).split(" ")[FIRST_POSITION]
+        )
         arch = arch + "|"
-        arch = arch + re.sub(r"\s+", " ", salida[4].strip()).split(" ")[1]
+        arch = (
+            arch
+            + re.sub(r"\s+", " ", lscpuOutput[4].strip()).split(" ")[FIRST_POSITION]
+        )
         arch = arch + "|"
-        arch = arch + re.sub(r"\s+", " ", salida[13].strip()).split(":")[1].strip()
+        arch = (
+            arch
+            + re.sub(r"\s+", " ", lscpuOutput[13].strip())
+            .split(":")[FIRST_POSITION]
+            .strip()
+        )
 
         return arch
 
     def getMac(self):
+        """Get network computer MAC address
+
+        Returns:
+            str: MAC address
+        """
         mac = subprocess.Popen(
             "cat /sys/class/net/{}/address".format(self.iface),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
 
-        return mac[0].strip()
+        return mac[ROOT_POSITION].strip()
 
     def extracData(self):
+        """Extract data from computer
+
+        Returns:
+            tuple: Computer data.
+        """
         data = list()
         data.append(self.getActivityHistory())
         data.append(self.getRam())
@@ -488,43 +558,34 @@ class Xark:
         return True
 
     def collection(self):
-        """Recolectar informacion de la laptop xo.
+        """Collect information from the laptop xo.
+
         Returns:
             bool: True/False.
         """
-        response = self.db.get(
-            "SELECT collect_status FROM xk_status WHERE date_print = ?", [(self.day)],
-        )
-        if bool(int(response[0])):
-            # La informacion para el dia ya se ha rocolectado.
-            # Termina la funcion.
-            return bool(int(response[0]))
+        status = self.db.get(SELECT_COLLECT_STATUS, list((self.day)))[ROOT_POSITION]
+        if bool(int(status)):
+            # The information for the day has already been collected.
+            return bool(int(status))
 
-        # Extraer informacion del diario.
+        # Extract information from the newspaper.
         journal = self.extracJournal()
         self.db.setmany(
-            "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            journal,
+            INSER_INTO_XK_JOURNAL_XO, journal,
         )
-        # Extraer informacion del dispocitivo
+        # Extract device information
         data = self.extracData()
         self.db.set(
-            "INSERT INTO xk_data_xo(xark_status_id, activities_history, ram, rom, kernel, arqc, mac) VALUES(?, ?, ?, ?, ?, ?, ?)",
-            data,
+            INSER_INTO_XK_DATA_OX, data,
         )
 
-        response_j = self.db.get(
-            "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?",
-            [(self.dayid)],
-        )
-        response_d = self.db.get(
-            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?", [(self.dayid)],
-        )
-        if int(response_j[0]) >= 1 and int(response_d[0]) >= 1:
-            # Estado de sincronizacion en `Sincronizado`
+        journalCount = self.db.get(SELECT_COUNT_JOURNAL, list((self.dayid)),)
+        dataCount = self.db.get(SELECT_COUNT_DATA, list((self.dayid)),)
+        if int(journalCount[ROOT_POSITION]) >= 1 and int(dataCount[ROOT_POSITION]) >= 1:
+            # Synchronization status in `Synchronized`
             self.db.set(
-                "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?",
-                [(True), (datetime.datetime.now()), (self.day)],
+                UPDATE_STATUS_COLLECT,
+                list((True), (datetime.datetime.now()), (self.day)),
             )
 
             return True
@@ -532,69 +593,55 @@ class Xark:
             return False
 
     def synchrome(self):
-        """Sincronizar con el charco."""
+        """Synchronize with the puddle."""
 
-        response = self.db.get(
-            "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?",
-            [(self.day)],
-        )
-        if bool(int(response[0])) and bool(int(response[1])):
-            # Termina la funcion si ya se a sincronizacion con el charco
-            return bool(int(response[0]))
+        syncStatus = self.db.get(SELECT_SYNC_STATUS, list((self.day)),)
+        if bool(int(syncStatus[ROOT_POSITION])) and bool(
+            int(syncStatus[FIRST_POSITION])
+        ):
+            # The function ends if it is already synchronized with the puddle
+            return bool(int(syncStatus[ROOT_POSITION]))
 
-        # Verifica si el IIAB esta disponible
-        request_url = (
+        # Check if the IIAB is available
+        requestUrl = (
             'curl -o /dev/null -w "%{http_code}\\n" -X POST '
-            + self.server
+            + self.serverName
             + ' -d "user='
-            + self.user
+            + self.userName
             + "&client_id="
-            + self.serialnum
+            + self.serialNumber
             + "&client_secret="
             + self.uuid
             + '"'
         )
         code = subprocess.Popen(
-            request_url, shell=True, stdout=subprocess.PIPE
+            requestUrl, shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
-        code = int(code[0].strip())
-        if code == 200 and bool(int(response[1])):
-            data = dict()
+        code = int(code[ROOT_POSITION].strip())
 
-            status = self.db.get(
-                "SELECT date_print, collect_status, collect_date, create_at, update_at FROM xk_status WHERE id_status = ?",
-                [(self.dayid)],
-            )
+        if code == 200 and bool(int(syncStatus[FIRST_POSITION])):
+            data = dict()
+            status = self.db.get(SELECT_DATA_STATUS, list((self.dayid)),)
             if status is not None:
-                data["status"] = list(str(i).encode() for i in status)
+                data["status"] = list(str(item).encode() for item in status)
             else:
                 data["status"] = list(list(map("Empty", range(5))))
 
-            journal = self.db.getmany(
-                "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid, create_at, update_at FROM xk_journal_xo WHERE xark_status_id = ?",
-                [(self.dayid)],
-            )
+            journal = self.db.getmany(SELECT_JOURNAL_DATA, list((self.dayid)),)
             if journal is not None:
                 data["journal"] = list(
-                    list(str(i).encode() for i in x) for x in journal
+                    list(str(item).encode() for item in field) for field in journal
                 )
             else:
                 data["journal"] = None
 
-            device = self.db.get(
-                "SELECT activities_history, ram, rom, kernel, arqc, mac, create_at, update_at FROM xk_data_xo WHERE xark_status_id = ?",
-                [(self.dayid)],
-            )
+            device = self.db.get(SELECT_DEVICE_DATA, list((self.dayid)),)
             if device is not None:
-                data["device"] = list(str(i).encode() for i in device)
+                data["device"] = list(str(item).encode() for item in device)
             else:
                 data["device"] = None
 
-            excepts = self.db.getmany(
-                "SELECT except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, create_at, update_at FROM xk_excepts WHERE ?",
-                [(1)],
-            )
-            print(excepts)
+            excepts = self.db.getmany(SELECT_EXCEPTIONS_DATA, list((1)),)
             if excepts is not None:
                 data["excepts"] = list(
                     list(str(i).encode() for i in x) for x in excepts
@@ -602,28 +649,29 @@ class Xark:
             else:
                 data["excepts"] = None
 
-            request_url = (
+            requestUrl = (
                 "curl -u "
-                + self.serialnum
+                + self.serialNumber
                 + ":"
                 + self.uuid
                 + ' -o /dev/null -w "%{http_code}\\n" -X POST '
-                + self.server
+                + self.serverName
                 + "data -d "
                 + '"grant_type=password&username='
-                + self.user
+                + self.userName
                 + "&client="
-                + self.serialnum
+                + self.serialNumber
                 + '&password=valid&scope=profile&data={}"'.format(data)
             )
-            result = subprocess.Popen(
-                request_url, shell=True, stdout=subprocess.PIPE
+            curlOutput = subprocess.Popen(
+                requestUrl, shell=True, stdout=subprocess.PIPE
             ).stdout.readlines()
-            result = int(result[0].strip())
-            if result == 200:
+            curlOutput = int(curlOutput[ROOT_POSITION].strip())
+
+            if curlOutput == 200:
                 self.db.set(
-                    "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?",
-                    [(True), (datetime.datetime.now()), (self.day)],
+                    UPDATE_SYNC_STATS,
+                    list((True), (datetime.datetime.now()), (self.day)),
                 )
                 return True
         else:
@@ -631,37 +679,37 @@ class Xark:
             self.s.run()
 
 
-def cath_Exception(tb_except):
-    """Captura traceback y excepciones para guardaelas en xark_except.
+def cath_Exception(tbExcept):
+    """Capture traceback and exceptions to save in xark_except.
     Args:
-        tb_except (str): Excepcion.
+        tbExcept (str): Excepcion.
     """
-    # Tipo de la excepcion.
-    except_type = str(sys.exc_info()[0])
-    except_type = except_type.split("'")[1]
-    # Mensaje de la excepcion.
-    except_message = sys.exc_info()[1]
-    # Captura traceback.
-    tb = sys.exc_info()[2]
-    tbinfo = traceback.format_tb(tb)[len(traceback.format_tb(tb)) - 1]
-    # Nombre del script.
-    file_name = tbinfo.split(",")[0].strip()
-    # Linea de la excepcion.
-    file_line = tbinfo.split(",")[1].strip()
-    # Fragmento de codigo de la excepcion.
-    except_code = tbinfo.split(",")[2].strip()
+    # Type of the exception.
+    exceptType = str(sys.exc_info()[ROOT_POSITION])
+    exceptType = exceptType.split("'")[FIRST_POSITION]
+    # Exception message.
+    exceptMessage = sys.exc_info()[FIRST_POSITION]
+    # Capture traceback
+    tb = sys.exc_info()[SECOND_POSITION]
+    tbInfo = traceback.format_tb(tb)[len(traceback.format_tb(tb)) - FIRST_POSITION]
+    # Script Name
+    fileName = tbInfo.split(",")[ROOT_POSITION].strip()
+    # Exception line.
+    fileLine = tbInfo.split(",")[FIRST_POSITION].strip()
+    # Excerpt code snippet.
+    exceptCode = tbInfo.split(",")[SECOND_POSITION].strip()
 
     Conexion().set(
-        "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name) VALUES(?, ?, ?, ?, ?, ?, ?)",
-        [
-            (except_type.replace("'", '"')),
-            (str(except_message).replace("'", '"')),
-            (file_name.replace("'", '"')),
-            (file_line.replace("'", '"')),
-            (except_code.replace("'", '"')),
-            (str(tb_except).replace("'", '"')),
+        INSERT_INTO_XK_EXCPTS,
+        list(
+            (exceptType.replace("'", '"')),
+            (str(exceptMessage).replace("'", '"')),
+            (fileName.replace("'", '"')),
+            (fileLine.replace("'", '"')),
+            (exceptCode.replace("'", '"')),
+            (str(tbExcept).replace("'", '"')),
             (os.environ["USER"].replace("'", '"')),
-        ],
+        ),
     )
 
     return True
