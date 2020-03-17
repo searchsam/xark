@@ -85,11 +85,11 @@ logger.setLevel(logging.DEBUG)
 
 
 def getCurrentDayOfWeek(format=None):
-    dayOfWeek = datetime.datetime.now().weekday()
+    dayOfWeek = datetime.datetime.now()
     if format is not None:
         return dayOfWeek.strftime(format)
 
-    return dayOfWeek
+    return dayOfWeek.weekday()
 
 
 def getCurrentTime(format=None):
