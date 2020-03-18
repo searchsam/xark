@@ -212,7 +212,7 @@ class Xark:
         getActivityHistory()
         getArch()
         getDailyId()
-        getDatePrint()
+        getDayPrint()
         getFileContent()
         getMac()
         getRam()
@@ -226,8 +226,8 @@ class Xark:
     def __init__(self, serverName, userName, networkIface, workingDir):
         # DB Connection class
         self.db = Conexion()
-        # Get status date print (integer current date)
-        self.day = getDatePrint()
+        # Get status day print (integer current date)
+        self.day = self.getDayPrint()
         # Get Laptop identifier
         id = self.getXOIdentifier()
         self.serialNumber = id["serialnum"]
@@ -254,7 +254,7 @@ class Xark:
         # Request Frequency Scheduler
         self.scheduler = sched.scheduler(time.time, time.sleep)
 
-    def getDatePrint(self):
+    def getDayPrint(self):
         """Get the date of current day on int.
 
         Returns:
