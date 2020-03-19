@@ -234,7 +234,7 @@ class Xark:
         self.uuid = id["uuid"]
         # Check kaibil daily status
         self.dayId = None
-        response = self.db.get(SELECT_DAILY_DATEPRINT, list((self.day)))
+        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)])
 
         if response is None:
             self.dayId = self.db.set(
