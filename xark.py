@@ -465,7 +465,7 @@ class Xark:
             stdout=subprocess.PIPE,
         ).stdout.readlines()
         for column in dfOutput:
-            field = re.sub(r"\s+", " ", column.strip()).split(" ")
+            field = re.sub(r"\s+", " ", column.strip().decode()).split(" ")
             if "/dev/" in field[0]:
                 field = list(
                     filter(
