@@ -533,7 +533,7 @@ class Xark:
             str: MAC address
         """
         mac = subprocess.Popen(
-            "cat /sys/class/net/{}/address".format(self.iface),
+            "cat /sys/class/net/{}/address".format(self.networkIface),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
