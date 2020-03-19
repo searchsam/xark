@@ -519,7 +519,7 @@ class Xark:
         arch = arch + "|"
         arch = (
             arch
-            + re.sub(r"\s+", " ", lscpuOutput[13].strip())
+            + re.sub(r"\s+", " ", lscpuOutput[13].strip().decode())
             .split(":")[FIRST_POSITION]
             .strip()
         )
