@@ -265,7 +265,7 @@ class Xark:
 
         Returns:
             int: Daily status id."""
-        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)])
+        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)],)
 
         return int(response[ROOT_POSITION])
 
@@ -562,7 +562,7 @@ class Xark:
         Returns:
             bool: True/False.
         """
-        status = self.db.get(SELECT_COLLECT_STATUS, list((self.day)))[ROOT_POSITION]
+        status = self.db.get(SELECT_COLLECT_STATUS, [(self.day)])[ROOT_POSITION]
         if bool(int(status)):
             # The information for the day has already been collected.
             return bool(int(status))
@@ -578,13 +578,12 @@ class Xark:
             INSER_INTO_XK_DATA_OX, data,
         )
 
-        journalCount = self.db.get(SELECT_COUNT_JOURNAL, list((self.dayid)),)
-        dataCount = self.db.get(SELECT_COUNT_DATA, list((self.dayid)),)
+        journalCount = self.db.get(SELECT_COUNT_JOURNAL, [(self.dayid)],)
+        dataCount = self.db.get(SELECT_COUNT_DATA, [(self.dayid)],)
         if int(journalCount[ROOT_POSITION]) >= 1 and int(dataCount[ROOT_POSITION]) >= 1:
             # Synchronization status in `Synchronized`
             self.db.set(
-                UPDATE_STATUS_COLLECT,
-                list((True), (datetime.datetime.now()), (self.day)),
+                UPDATE_STATUS_COLLECT, [(True), (datetime.datetime.now()), (self.day)],
             )
 
             return True
@@ -594,7 +593,7 @@ class Xark:
     def synchrome(self):
         """Synchronize with the puddle."""
 
-        syncStatus = self.db.get(SELECT_SYNC_STATUS, list((self.day)),)
+        syncStatus = self.db.get(SELECT_SYNC_STATUS, [(self.day)],)
         if bool(int(syncStatus[ROOT_POSITION])) and bool(
             int(syncStatus[FIRST_POSITION])
         ):
@@ -620,13 +619,13 @@ class Xark:
 
         if code == 200 and bool(int(syncStatus[FIRST_POSITION])):
             data = dict()
-            status = self.db.get(SELECT_DATA_STATUS, list((self.dayid)),)
+            status = self.db.get(SELECT_DATA_STATUS, [(self.dayid)],)
             if status is not None:
                 data["status"] = list(str(item).encode() for item in status)
             else:
                 data["status"] = list(list(map("Empty", range(5))))
 
-            journal = self.db.getmany(SELECT_JOURNAL_DATA, list((self.dayid)),)
+            journal = self.db.getmany(SELECT_JOURNAL_DATA, [(self.dayid)],)
             if journal is not None:
                 data["journal"] = list(
                     list(str(item).encode() for item in field) for field in journal
@@ -634,13 +633,13 @@ class Xark:
             else:
                 data["journal"] = None
 
-            device = self.db.get(SELECT_DEVICE_DATA, list((self.dayid)),)
+            device = self.db.get(SELECT_DEVICE_DATA, [(self.dayid)],)
             if device is not None:
                 data["device"] = list(str(item).encode() for item in device)
             else:
                 data["device"] = None
 
-            excepts = self.db.getmany(SELECT_EXCEPTIONS_DATA, list((1)),)
+            excepts = self.db.getmany(SELECT_EXCEPTIONS_DATA, [(1)],)
             if excepts is not None:
                 data["excepts"] = list(
                     list(str(i).encode() for i in x) for x in excepts
@@ -669,13 +668,12 @@ class Xark:
 
             if curlOutput == 200:
                 self.db.set(
-                    UPDATE_SYNC_STATS,
-                    list((True), (datetime.datetime.now()), (self.day)),
+                    UPDATE_SYNC_STATS, [(True), (datetime.datetime.now()), (self.day)],
                 )
                 return True
         else:
-            self.s.enter(10, 1, self.synchrome, ())
-            self.s.run()
+            self.scheduler.enter(10, 1, self.synchrome, ())
+            self.scheduler.run()
 
 
 def cath_Exception(tbExcept):
@@ -700,7 +698,7 @@ def cath_Exception(tbExcept):
 
     Conexion().set(
         INSERT_INTO_XK_EXCPTS,
-        list(
+        [
             (exceptType.replace("'", '"')),
             (str(exceptMessage).replace("'", '"')),
             (fileName.replace("'", '"')),
@@ -708,7 +706,7 @@ def cath_Exception(tbExcept):
             (exceptCode.replace("'", '"')),
             (str(tbExcept).replace("'", '"')),
             (os.environ["USER"].replace("'", '"')),
-        ),
+        ],
     )
 
     return True
