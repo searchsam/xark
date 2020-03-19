@@ -423,8 +423,8 @@ class Xark:
         freeOutput = subprocess.Popen(
             "free -m", shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
-        ramValuesList = re.sub(r"\s+", " ", freeOutput[1])
-        swapValuesList = re.sub(r"\s+", " ", freeOutput[SECOND_POSITION])
+        ramValuesList = re.sub(r"\s+", " ", freeOutput[FIRST_POSITION].decode())
+        swapValuesList = re.sub(r"\s+", " ", freeOutput[SECOND_POSITION].decode())
 
         def concatIterator(iteratorList):
             concatChain = iteratorList.strip().split(" ")
