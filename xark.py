@@ -553,7 +553,7 @@ class Xark:
         data.append(self.getKernel())
         data.append(self.getArch())
         data.append(self.getMac())
-        data.insert(0, self.dayid)
+        data.insert(0, self.dayId)
 
         return tuple(data)
 
@@ -589,8 +589,8 @@ class Xark:
             INSER_INTO_XK_DATA_OX, data,
         )
 
-        journalCount = self.db.get(SELECT_COUNT_JOURNAL, [(self.dayid)],)
-        dataCount = self.db.get(SELECT_COUNT_DATA, [(self.dayid)],)
+        journalCount = self.db.get(SELECT_COUNT_JOURNAL, [(self.dayId)],)
+        dataCount = self.db.get(SELECT_COUNT_DATA, [(self.dayId)],)
         if int(journalCount[ROOT_POSITION]) >= 1 and int(dataCount[ROOT_POSITION]) >= 1:
             # Synchronization status in `Synchronized`
             self.db.set(
@@ -630,13 +630,13 @@ class Xark:
 
         if code == 200 and bool(int(syncStatus[FIRST_POSITION])):
             data = dict()
-            status = self.db.get(SELECT_DATA_STATUS, [(self.dayid)],)
+            status = self.db.get(SELECT_DATA_STATUS, [(self.dayId)],)
             if status is not None:
                 data["status"] = list(str(item).encode() for item in status)
             else:
                 data["status"] = list(list(map("Empty", range(5))))
 
-            journal = self.db.getmany(SELECT_JOURNAL_DATA, [(self.dayid)],)
+            journal = self.db.getmany(SELECT_JOURNAL_DATA, [(self.dayId)],)
             if journal is not None:
                 data["journal"] = list(
                     list(str(item).encode() for item in field) for field in journal
@@ -644,7 +644,7 @@ class Xark:
             else:
                 data["journal"] = None
 
-            device = self.db.get(SELECT_DEVICE_DATA, [(self.dayid)],)
+            device = self.db.get(SELECT_DEVICE_DATA, [(self.dayId)],)
             if device is not None:
                 data["device"] = list(str(item).encode() for item in device)
             else:
