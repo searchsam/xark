@@ -372,7 +372,7 @@ class Xark:
                 )
             )
 
-            return self.addFirst(fileContent, self.dayId)
+            return self.addOnFirstPosition(fileContent, self.dayId)
 
         return None
 
