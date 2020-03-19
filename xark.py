@@ -491,7 +491,7 @@ class Xark:
             "uname -a", shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
 
-        return kernel[ROOT_POSITION].strip().split("#")[ROOT_POSITION].strip()
+        return kernel[ROOT_POSITION].strip().decode().split("#")[ROOT_POSITION].strip()
 
     def getArch(self):
         """Get system architecture
