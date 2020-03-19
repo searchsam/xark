@@ -238,8 +238,7 @@ class Xark:
 
         if response is None:
             self.dayId = self.db.set(
-                INSERT_INTO_XK_STATUS,
-                list((self.serialNumber), (self.uuid), (self.day)),
+                INSERT_INTO_XK_STATUS, [(self.serialNumber), (self.uuid), (self.day)],
             )
         else:
             self.dayId = self.getDailyId()
@@ -266,7 +265,7 @@ class Xark:
 
         Returns:
             int: Daily status id."""
-        response = self.db.get(SELECT_DAILY_DATEPRINT, list((self.day)),)
+        response = self.db.get(SELECT_DAILY_DATEPRINT, [(self.day)])
 
         return int(response[ROOT_POSITION])
 
