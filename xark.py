@@ -331,7 +331,7 @@ class Xark:
         Returns:
             list: List of dictionary contents.
         """
-        journalFiles = list(
+        journalFiles = [
             "activity",
             "activity_id",
             "checksum",
@@ -349,7 +349,7 @@ class Xark:
             "title",
             "title_set_by_user",
             "uid",
-        )
+        ]
 
         if fullFilePath not in list(
             "index", "checksums", "index_updated", "version", "ds_clean",
