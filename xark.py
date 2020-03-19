@@ -505,12 +505,16 @@ class Xark:
         ).stdout.readlines()
         arch = (
             arch
-            + re.sub(r"\s+", " ", lscpuOutput[0].strip()).split(" ")[FIRST_POSITION]
+            + re.sub(r"\s+", " ", lscpuOutput[0].strip().decode()).split(" ")[
+                FIRST_POSITION
+            ]
         )
         arch = arch + "|"
         arch = (
             arch
-            + re.sub(r"\s+", " ", lscpuOutput[4].strip()).split(" ")[FIRST_POSITION]
+            + re.sub(r"\s+", " ", lscpuOutput[4].strip().decode()).split(" ")[
+                FIRST_POSITION
+            ]
         )
         arch = arch + "|"
         arch = (
@@ -534,7 +538,7 @@ class Xark:
             stdout=subprocess.PIPE,
         ).stdout.readlines()
 
-        return mac[ROOT_POSITION].strip()
+        return mac[ROOT_POSITION].strip().decode()
 
     def extracData(self):
         """Extract data from computer
@@ -622,7 +626,7 @@ class Xark:
         code = subprocess.Popen(
             requestUrl, shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
-        code = int(code[ROOT_POSITION].strip())
+        code = int(code[ROOT_POSITION].strip().decode())
 
         if code == 200 and bool(int(syncStatus[FIRST_POSITION])):
             data = dict()
@@ -671,7 +675,7 @@ class Xark:
             curlOutput = subprocess.Popen(
                 requestUrl, shell=True, stdout=subprocess.PIPE
             ).stdout.readlines()
-            curlOutput = int(curlOutput[ROOT_POSITION].strip())
+            curlOutput = int(curlOutput[ROOT_POSITION].strip().decode())
 
             if curlOutput == 200:
                 self.db.set(
