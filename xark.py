@@ -30,44 +30,44 @@ import multiprocessing
 
 __author__ = "Samuel Gutierrez <search.sama@gmail.com>"
 __credits__ = ["Samuel Gutierrez", "Nestor Bonilla", "Porfirio Paiz"]
-__license__ = "Apache License"
-__version__ = "1.0.1"
-__maintainer__ = "Samuel Gutierrez"
 __email__ = "search.sama@gmail.com"
+__license__ = "Apache License"
+__maintainer__ = "Samuel Gutierrez"
 __status__ = "Development"
+__version__ = "1.0.1"
 
 # Constants
-MONDAY = 0
 FRIDAY = 4
-START_DAY_TIME = datetime.time(6, 0)
-END_DAY_TIME = datetime.time(18, 0)
-DB_NAME = "main.db"
-XO_CONFIG_FILE = "config.json"
-JOURNAL_METADATA_DIR = "~/.sugar/default/datastore/"
+MONDAY = 0
 APP_NAME = "XARK"
-DEVELOP_ID_FILE = "/home/.devkey.html"
 ROOT_POSITION = 0
 FIRST_POSITION = 1
 SECOND_POSITION = 2
+DB_NAME = "main.db"
+XO_CONFIG_FILE = "config.json"
+END_DAY_TIME = datetime.time(18, 0)
+START_DAY_TIME = datetime.time(6, 0)
+DEVELOP_ID_FILE = "/home/.devkey.html"
+JOURNAL_METADATA_DIR = "~/.sugar/default/datastore/"
 
 # Queries
-SELECT_DAILY_DATEPRINT = "SELECT id_status FROM xk_status WHERE date_print = ?"
-SELECT_COLLECT_STATUS = "SELECT collect_status FROM xk_status WHERE date_print = ?"
-SELECT_COUNT_JOURNAL = "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?"
-SELECT_COUNT_DATA = "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?"
-SELECT_SYNC_STATUS = (
-    "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?"
-)
-SELECT_DATA_STATUS = "SELECT date_print, collect_status, collect_date, create_at, update_at FROM xk_status WHERE id_status = ?"
-SELECT_JOURNAL_DATA = "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid, create_at, update_at FROM xk_journal_xo WHERE xark_status_id = ?"
-SELECT_DEVICE_DATA = "SELECT activities_history, ram, rom, kernel, arqc, mac, create_at, update_at FROM xk_data_xo WHERE xark_status_id = ?"
-SELECT_EXCEPTIONS_DATA = "SELECT except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, create_at, update_at FROM xk_excepts WHERE ?"
+INSER_INTO_XK_DATA_OX = "INSERT INTO xk_data_xo(xark_status_id, activities_history, ram, rom, kernel, arqc, mac) VALUES(?, ?, ?, ?, ?, ?, ?)"
+INSER_INTO_XK_JOURNAL_XO = "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+INSERT_INTO_XK_EXCPTS = "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name) VALUES(?, ?, ?, ?, ?, ?, ?)"
 INSERT_INTO_XK_STATUS = (
     "INSERT INTO xk_status(serial_num, uuid, date_print) VALUES(?, ?, ?)"
 )
-INSER_INTO_XK_JOURNAL_XO = "INSERT INTO xk_journal_xo(xark_status_id, activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-INSER_INTO_XK_DATA_OX = "INSERT INTO xk_data_xo(xark_status_id, activities_history, ram, rom, kernel, arqc, mac) VALUES(?, ?, ?, ?, ?, ?, ?)"
-INSERT_INTO_XK_EXCPTS = "INSERT INTO xk_excepts(except_type, except_messg, file_name, file_line, except_code, tb_except, user_name) VALUES(?, ?, ?, ?, ?, ?, ?)"
+SELECT_COLLECT_STATUS = "SELECT collect_status FROM xk_status WHERE date_print = ?"
+SELECT_COUNT_DATA = "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?"
+SELECT_COUNT_JOURNAL = "SELECT COUNT(*) FROM xk_journal_xo WHERE xark_status_id = ?"
+SELECT_DAILY_DATEPRINT = "SELECT id_status FROM xk_status WHERE date_print = ?"
+SELECT_DATA_STATUS = "SELECT date_print, collect_status, collect_date, create_at, update_at FROM xk_status WHERE id_status = ?"
+SELECT_DEVICE_DATA = "SELECT activities_history, ram, rom, kernel, arqc, mac, create_at, update_at FROM xk_data_xo WHERE xark_status_id = ?"
+SELECT_EXCEPTIONS_DATA = "SELECT except_type, except_messg, file_name, file_line, except_code, tb_except, user_name, create_at, update_at FROM xk_excepts WHERE ?"
+SELECT_JOURNAL_DATA = "SELECT activity, activity_id, checksum, creation_time, file_size, icon_color, keep, launch_times, mime_type, mountpoint, mtime, share_scope, spent_times, time_stamp, title, title_set_by_user, uid, create_at, update_at FROM xk_journal_xo WHERE xark_status_id = ?"
+SELECT_SYNC_STATUS = (
+    "SELECT sync_status, collect_status FROM xk_status WHERE date_print = ?"
+)
 UPDATE_STATUS_COLLECT = (
     "UPDATE xk_status set collect_status = ?, collect_date = ? WHERE date_print = ?"
 )
@@ -214,11 +214,11 @@ class Xark:
         getDailyId()
         getDayPrint()
         getFileContent()
+        getKernel()
         getMac()
         getRam()
         getRom()
         getXOIdentifier()
-        getKernel()
         readFile()
         synchrome()
     """
@@ -291,8 +291,8 @@ class Xark:
         """Add item to tuple at beginning of tuple.
 
         Args:
-            tupleData (tuple): Tuple to the item is added.
             newItem (str): Element to added at tuple.
+            tupleData (tuple): Tuple to the item is added.
 
         Returns:
             tuple: Tuple with the item added at beginning.
@@ -306,8 +306,8 @@ class Xark:
         """Read the metadata file content.
 
         Args:
-            filePath (str): Path to the metadata directory.
             fileName (str): File name to read.
+            filePath (str): Path to the metadata directory.
 
         Returns:
             dict: (File Name, File Content).
@@ -332,8 +332,8 @@ class Xark:
             list: List of dictionary contents.
         """
         journalFiles = [
-            "activity",
             "activity_id",
+            "activity",
             "checksum",
             "creation_time",
             "filesize",
@@ -346,17 +346,17 @@ class Xark:
             "share-scope",
             "spent-times",
             "timestamp",
-            "title",
             "title_set_by_user",
+            "title",
             "uid",
         ]
 
         if fullFilePath not in [
-            "index",
             "checksums",
-            "index_updated",
-            "version",
             "ds_clean",
+            "index_updated",
+            "index",
+            "version",
         ]:
             onDir = subprocess.Popen(
                 "ls -d {}{}/*".format(self.journalDir, fullFilePath),
@@ -365,7 +365,9 @@ class Xark:
             ).stdout.readlines()
             fileContent = tuple(
                 map(
-                    lambda file: self.readFile(onDir[ROOT_POSITION].strip(), file),
+                    lambda file: self.readFile(
+                        onDir[ROOT_POSITION].strip().decode(), file
+                    ),
                     journalFiles,
                 )
             )
@@ -383,7 +385,7 @@ class Xark:
         fileList = subprocess.Popen(
             "ls {}".format(self.journalDir), shell=True, stdout=subprocess.PIPE
         ).stdout.readlines()
-        fileList = list(file.strip() for file in fileList)
+        fileList = list(file.strip().decode() for file in fileList)
         infoPerFile = map(lambda file: self.getFileContent(file), fileList)
         infoPerFile = list(filter(lambda fileInfo: fileInfo, infoPerFile))
 
