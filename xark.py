@@ -351,9 +351,13 @@ class Xark:
             "uid",
         ]
 
-        if fullFilePath not in list(
-            "index", "checksums", "index_updated", "version", "ds_clean",
-        ):
+        if fullFilePath not in [
+            "index",
+            "checksums",
+            "index_updated",
+            "version",
+            "ds_clean",
+        ]:
             onDir = subprocess.Popen(
                 "ls -d {}{}/*".format(self.journalDir, fullFilePath),
                 shell=True,
