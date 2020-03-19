@@ -78,7 +78,7 @@ UPDATE_SYNC_STATUS = (
 # Logging setting
 logger = logging.getLogger(APP_NAME.lower())
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)-s - %(message)s")
-handler = logging.FileHandler(filename=APP_NAME.lower() + "log", mode="a")
+handler = logging.FileHandler(filename=APP_NAME.lower() + ".log", mode="a")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
