@@ -812,7 +812,9 @@ if __name__ == "__main__":
         env = get()
 
         # Kaibil Instance
-        xark = Xark(env["HOST"], env["USER"], env["IFACE"], env["W_DIR"])
+        xark = Xark(
+            env["XIAP_HOST"], env["XO_USER"], env["IFACE"], env["WORKING_DIRECTORY"]
+        )
 
         if getCurrentDayOfWeek() >= MONDAY and getCurrentDayOfWeek() <= FRIDAY:
             if getCurrentTime() >= START_DAY_TIME and getCurrentTime() <= END_DAY_TIME:
