@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE xk_status(
+CREATE TABLE xk_status (
 	id_status INTEGER PRIMARY KEY AUTOINCREMENT,
 	serial_num VARCHAR NOT NULL,
 	uuid VARCHAR NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE xk_status(
 	update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE xk_journal_xo(
+CREATE TABLE xk_journal_xo (
 	id_journal_xo INTEGER PRIMARY KEY AUTOINCREMENT,
 	xark_status_id INTEGER,
 	activity VARCHAR NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE xk_journal_xo(
 	FOREIGN KEY(xark_status_id) REFERENCES xk_status(id_status)
 );
 
-CREATE TABLE xk_data_xo(
+CREATE TABLE xk_data_xo (
 	id_data_xo INTEGER PRIMARY KEY AUTOINCREMENT,
 	xark_status_id INTEGER UNIQUE,
 	activities_history VARCHAR NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE xk_data_xo(
 	FOREIGN KEY(xark_status_id) REFERENCES xk_status(id_status)
 );
 
-CREATE TABLE xk_excepts(
+CREATE TABLE xk_excepts (
     id_excepts INTEGER PRIMARY KEY AUTOINCREMENT,
     except_type VARCHAR NOT NULL,
     except_messg VARCHAR NOT NULL,
