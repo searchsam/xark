@@ -18,11 +18,13 @@ Internal information collector of the XO. Currently collects:
 import os
 import re
 import sys
-import json
 import time
+import json
 import sched
-import logging
+import values
+import public
 import sqlite3
+import logging
 import datetime
 import traceback
 import subprocess
@@ -30,9 +32,7 @@ import multiprocessing
 
 # Logging setting
 logger = logging.getLogger("xark")
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)-s - %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)-s - %(message)s")
 handler = logging.FileHandler(filename="xark.log", mode="a")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -137,6 +137,95 @@ class Conexion:
         self.conn.close()
 
 
+def parse(self, line):
+    """Parse line and return a dictionary with variable value"""
+    if line.lstrip().startswith("#"):
+        return {}
+
+    if not line.lstrip():
+        return {}
+
+    """find the second occurence of a quote mark:"""
+    if line.find("export=") == 0:
+        line = line.replace("export=", "")
+
+    quote_delimit = max(
+        line.find("'", line.find("'") + 1), line.find('"', line.rfind('"')) + 1
+    )
+
+    """find first comment mark after second quote mark"""
+    if "#" in line:
+        line = line[: line.find("#", quote_delimit)]
+
+    key, value = map(lambda x: x.strip().strip("'").strip('"'), line.split("=", 1))
+
+    return {key: value}
+
+
+class EnvFile(dict):
+    """.env file class"""
+
+    path = None
+
+    def __init__(self, path, **kwargs):
+        self.path = os.path.abspath(os.path.expanduser(path))
+        if os.path.exists(self.path):
+            for line in open(self.path).read().splitlines():
+                self.update(parse(line))
+
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def load(self):
+        os.environ.update(self)
+
+    def save(self):
+        """save a dictionary to a file"""
+        lines = []
+
+        for key, value in self.items():
+            lines.append("%s=%s" % (key, value))
+
+        lines.append("")
+        open(self.path, "w").write("\n".join(lines))
+
+    def __setitem__(self, key, value):
+        super(EnvFile, self).__setitem__(key, value)
+
+    def __delitem__(self, key):
+        super(EnvFile, self).__delitem__(key)
+
+
+def get(path=".env"):
+    """return a dictionary wit .env file variables"""
+    data = dict()
+
+    if not path:
+        path = ".env"
+
+    for path in values.get(path):
+        if not os.path.exists(path):
+            raise OSError("%s NOT EXISTS" % os.path.abspath(path))
+
+        data.update(EnvFile(path))
+
+    return data
+
+
+def load(path=".env"):
+    """set environment variables from .env file"""
+    if not path:
+        path = ".env"
+
+    for path in values.get(path):
+        path = os.path.abspath(os.path.expanduser(path))
+
+        if not os.path.exists(path):
+            raise OSError("%s NOT EXISTS" % path)
+
+        os.environ.update(get(path))
+
+
 class Xark:
     """
     Xark class for extract device info from xo laptop.
@@ -195,8 +284,7 @@ class Xark:
 
     def getDailyId(self):
         response = self.db.get(
-            "SELECT id_status FROM xk_status WHERE date_print = ?",
-            [(self.day)],
+            "SELECT id_status FROM xk_status WHERE date_print = ?", [(self.day)],
         )
 
         return int(response[0])
@@ -285,9 +373,7 @@ class Xark:
                 shell=True,
                 stdout=subprocess.PIPE,
             ).stdout.readlines()
-            info = tuple(
-                map(lambda x: self.readFile(in_dir[0].strip(), x), data_name)
-            )
+            info = tuple(map(lambda x: self.readFile(in_dir[0].strip(), x), data_name))
             info = self.addFirst(info, self.dayid)
             print(info)
             return info
@@ -309,9 +395,7 @@ class Xark:
     def getActivityHistory(self):
         lista = ""
         salida = subprocess.Popen(
-            "ls {}Activities/".format(self.w_dir),
-            shell=True,
-            stdout=subprocess.PIPE,
+            "ls {}Activities/".format(self.w_dir), shell=True, stdout=subprocess.PIPE,
         ).stdout.readlines()
         for i, v in enumerate(salida):
             if i < len(salida) - 1:
@@ -384,10 +468,7 @@ class Xark:
         arch = arch + "|"
         arch = arch + re.sub(r"\s+", " ", salida[4].strip()).split(" ")[1]
         arch = arch + "|"
-        arch = (
-            arch
-            + re.sub(r"\s+", " ", salida[13].strip()).split(":")[1].strip()
-        )
+        arch = arch + re.sub(r"\s+", " ", salida[13].strip()).split(":")[1].strip()
 
         return arch
 
@@ -428,8 +509,7 @@ class Xark:
             bool: True/False.
         """
         response = self.db.get(
-            "SELECT collect_status FROM xk_status WHERE date_print = ?",
-            [(self.day)],
+            "SELECT collect_status FROM xk_status WHERE date_print = ?", [(self.day)],
         )
         if bool(int(response[0])):
             # La informacion para el dia ya se ha rocolectado.
@@ -454,8 +534,7 @@ class Xark:
             [(self.dayid)],
         )
         response_d = self.db.get(
-            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?",
-            [(self.dayid)],
+            "SELECT COUNT(*) FROM xk_data_xo WHERE xark_status_id = ?", [(self.dayid)],
         )
         if int(response_j[0]) >= 1 and int(response_d[0]) >= 1:
             # Estado de sincronizacion en `Sincronizado`
@@ -608,19 +687,16 @@ if __name__ == "__main__":
     """Flujo prinvipal de ejecucion."""
 
     # Log de inicio diario
-    logger.info(
-        "Inicio de la ejecucion del dia {}".format(datetime.datetime.now())
-    )
+    logger.info("Inicio de la ejecucion del dia {}".format(datetime.datetime.now()))
 
     try:
         # Obtener las configuraciones desde config.json
-        with open("config.json") as config_file:
-            config = json.load(config_file)
+        # with open("config.json") as config_file:
+        #     config = json.load(config_file)
+        print(load())
 
         # Instancia del Kaibil
-        xark = Xark(
-            config["host"], config["user"], config["iface"], config["w_dir"]
-        )
+        xark = Xark(config["host"], config["user"], config["iface"], config["w_dir"])
 
         # Verifica si el dia de la semana es entre lunes y viernes
         if (
@@ -632,9 +708,7 @@ if __name__ == "__main__":
                 6, 0
             ) and datetime.datetime.now().time() <= datetime.time(19, 0):
                 # Recolectar informacion
-                multiprocessing.Process(
-                    target=xark.collection, args=()
-                ).start()
+                multiprocessing.Process(target=xark.collection, args=()).start()
                 # Sincronizar con el charco
                 multiprocessing.Process(target=xark.synchrome, args=()).start()
 
