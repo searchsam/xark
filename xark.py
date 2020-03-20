@@ -18,11 +18,11 @@ Internal information collector of the XO. Currently collects:
 import os
 import re
 import sys
-import json
 import time
+import json
 import sched
-import logging
 import sqlite3
+import logging
 import datetime
 import traceback
 import subprocess
@@ -74,14 +74,6 @@ UPDATE_STATUS_COLLECT = (
 UPDATE_SYNC_STATUS = (
     "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?"
 )
-
-# Logging setting
-logger = logging.getLogger(APP_NAME.lower())
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)-s - %(message)s")
-handler = logging.FileHandler(filename=APP_NAME.lower() + ".log", mode="a")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
 
 
 def getCurrentDayOfWeek(format=None):
@@ -198,6 +190,82 @@ class Conexion:
         self.conn.close()
 
 
+def parse(line):
+    """Parse line and return a dictionary with variable value"""
+    if line.lstrip().startswith("#"):
+        return {}
+
+    if not line.lstrip():
+        return {}
+
+    """find the second occurence of a quote mark:"""
+    if line.find("export=") == ROOT_POSITION:
+        line = line.replace("export=", "")
+
+    quote_delimit = max(
+        line.find("'", line.find("'") + 1), line.find('"', line.rfind('"')) + 1
+    )
+
+    """find first comment mark after second quote mark"""
+    if "#" in line:
+        line = line[: line.find("#", quote_delimit)]
+
+    key, value = map(lambda x: x.strip().strip("'").strip('"'), line.split("=", 1))
+
+    return {key: value}
+
+
+class EnvFile(dict):
+    """.env file class"""
+
+    path = None
+
+    def __init__(self, path, **kwargs):
+        self.path = os.path.abspath(os.path.expanduser(path))
+
+        if os.path.exists(self.path):
+            for line in open(self.path).read().splitlines():
+                self.update(parse(line))
+
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def load(self):
+        os.environ.update(self)
+
+    def save(self):
+        """save a dictionary to a file"""
+        lines = []
+
+        for key, value in self.items():
+            lines.append("{}={}".format(key, value))
+
+        lines.append("")
+        open(self.path, "w").write("\n".join(lines))
+
+    def __setitem__(self, key, value):
+        super(EnvFile, self).__setitem__(key, value)
+
+    def __delitem__(self, key):
+        super(EnvFile, self).__delitem__(key)
+
+
+def get(path=".env"):
+    """return a dictionary wit .env file variables"""
+    data = dict()
+
+    if not path:
+        path = ".env"
+
+    for path in [path]:
+        if not os.path.exists(path):
+            raise OSError("{} NOT EXISTS".format(os.path.abspath(path)))
+
+        data.update(EnvFile(path))
+
+    return data
+
+
 class Xark:
     """
     Xark class for extract device info from xo laptop.
@@ -223,7 +291,7 @@ class Xark:
         synchrome()
     """
 
-    def __init__(self, serverName, userName, networkIface, workingDir):
+    def __init__(self):
         # DB Connection class
         self.db = Conexion()
         # Get status day print (integer current date)
@@ -244,12 +312,7 @@ class Xark:
             self.dayId = self.getDailyId()
 
         # Directorio de metadata del Diario
-        self.journalDir = workingDir + ".sugar/default/datastore/"
-        # Indentificacion del servidor
-        self.serverName = serverName
-        self.userName = userName
-        self.networkIface = networkIface
-        self.workingDir = workingDir
+        self.journalDir = env["WORKING_DIRECTORY"] + ".sugar/default/datastore/"
         # Request Frequency Scheduler
         self.scheduler = sched.scheduler(time.time, time.sleep)
 
@@ -399,7 +462,7 @@ class Xark:
         """
         historyContent = ""
         activityList = subprocess.Popen(
-            "ls {}Activities/".format(self.workingDir),
+            "ls {}Activities/".format(env["WORKING_DIRECTORY"]),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
@@ -466,7 +529,7 @@ class Xark:
         ).stdout.readlines()
         for column in dfOutput:
             field = re.sub(r"\s+", " ", column.strip().decode()).split(" ")
-            if "/dev/" in field[0]:
+            if "/dev/" in field[ROOT_POSITION]:
                 field = list(
                     filter(
                         lambda item: field.index(item) > 0 and field.index(item) <= 4,
@@ -505,9 +568,9 @@ class Xark:
         ).stdout.readlines()
         arch = (
             arch
-            + re.sub(r"\s+", " ", lscpuOutput[0].strip().decode()).split(" ")[
-                FIRST_POSITION
-            ]
+            + re.sub(r"\s+", " ", lscpuOutput[ROOT_POSITION].strip().decode()).split(
+                " "
+            )[FIRST_POSITION]
         )
         arch = arch + "|"
         arch = (
@@ -533,12 +596,14 @@ class Xark:
             str: MAC address
         """
         mac = subprocess.Popen(
-            "cat /sys/class/net/{}/address".format(self.networkIface),
+            "cat /sys/class/net/{}/address".format(env["IFACE"]),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
-
-        return mac[ROOT_POSITION].strip().decode()
+        if len(mac):
+            return mac[ROOT_POSITION].strip().decode()
+        else:
+            return ""
 
     def extracData(self):
         """Extract data from computer
@@ -553,7 +618,7 @@ class Xark:
         data.append(self.getKernel())
         data.append(self.getArch())
         data.append(self.getMac())
-        data.insert(0, self.dayId)
+        data.insert(ROOT_POSITION, self.dayId)
 
         return tuple(data)
 
@@ -614,9 +679,9 @@ class Xark:
         # Check if the IIAB is available
         requestUrl = (
             'curl -o /dev/null -w "%{http_code}\\n" -X POST '
-            + self.serverName
+            + env["XIAP_HOST"]
             + ' -d "user='
-            + self.userName
+            + env["XO_USER"]
             + "&client_id="
             + self.serialNumber
             + "&client_secret="
@@ -664,10 +729,10 @@ class Xark:
                 + ":"
                 + self.uuid
                 + ' -o /dev/null -w "%{http_code}\\n" -X POST '
-                + self.serverName
+                + env["XIAP_HOST"]
                 + "data -d "
                 + '"grant_type=password&username='
-                + self.userName
+                + env["XO_USER"]
                 + "&client="
                 + self.serialNumber
                 + '&password=valid&scope=profile&data={}"'.format(data)
@@ -707,6 +772,8 @@ def cath_Exception(tbExcept):
     # Excerpt code snippet.
     exceptCode = tbInfo.split(",")[SECOND_POSITION].strip()
 
+    logger.error("{}".format(sys.exc_info()))
+
     Conexion().set(
         INSERT_INTO_XK_EXCPTS,
         [
@@ -726,18 +793,27 @@ def cath_Exception(tbExcept):
 if __name__ == "__main__":
     """Main flow of execution."""
 
+    # Logging setting
+    logger = logging.getLogger(APP_NAME.lower())
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)-s - %(message)s"
+    )
+    handler = logging.FileHandler(filename=APP_NAME.lower() + ".log", mode="a")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
     # Daily Start Log
     logger.info(
         "{} - start execution.".format(getCurrentDayOfWeek("%B %d %Y %A %H:%M:%S"))
     )
 
     try:
-        # Get the settings from config.json
-        with open(XO_CONFIG_FILE) as config_file:
-            config = json.load(config_file)
+        # Get the environment vars
+        env = get()
 
         # Kaibil Instance
-        xark = Xark(config["host"], config["user"], config["iface"], config["w_dir"])
+        xark = Xark()
 
         if getCurrentDayOfWeek() >= MONDAY and getCurrentDayOfWeek() <= FRIDAY:
             if getCurrentTime() >= START_DAY_TIME and getCurrentTime() <= END_DAY_TIME:
