@@ -613,8 +613,10 @@ class Xark:
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
-
-        return mac[ROOT_POSITION].strip().decode()
+        if len(mac):
+            return mac[ROOT_POSITION].strip().decode()
+        else:
+            return mac
 
     def extracData(self):
         """Extract data from computer
