@@ -246,7 +246,7 @@ class EnvFile(dict):
         lines = []
 
         for key, value in self.items():
-            lines.append("%s=%s" % (key, value))
+            lines.append("{}={}".format(key, value))
 
         lines.append("")
         open(self.path, "w").write("\n".join(lines))
@@ -267,7 +267,7 @@ def get(path=".env"):
 
     for path in [path]:
         if not os.path.exists(path):
-            raise OSError("%s NOT EXISTS" % os.path.abspath(path))
+            raise OSError("{} NOT EXISTS".format(os.path.abspath(path)))
 
         data.update(EnvFile(path))
 
