@@ -1,4 +1,4 @@
-#!/bin/#!/bin/sh
+#!/usr/bin/env bash
 
 # Crea la base datos para sqlite3 limpia
 if [ -f ./xark.db ];
