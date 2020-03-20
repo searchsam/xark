@@ -207,7 +207,7 @@ def parse(line):
         return {}
 
     """find the second occurence of a quote mark:"""
-    if line.find("export=") == 0:
+    if line.find("export=") == ROOT_POSITION:
         line = line.replace("export=", "")
 
     quote_delimit = max(
@@ -542,7 +542,7 @@ class Xark:
         ).stdout.readlines()
         for column in dfOutput:
             field = re.sub(r"\s+", " ", column.strip().decode()).split(" ")
-            if "/dev/" in field[0]:
+            if "/dev/" in field[ROOT_POSITION]:
                 field = list(
                     filter(
                         lambda item: field.index(item) > 0 and field.index(item) <= 4,
@@ -581,9 +581,9 @@ class Xark:
         ).stdout.readlines()
         arch = (
             arch
-            + re.sub(r"\s+", " ", lscpuOutput[0].strip().decode()).split(" ")[
-                FIRST_POSITION
-            ]
+            + re.sub(r"\s+", " ", lscpuOutput[ROOT_POSITION].strip().decode()).split(
+                " "
+            )[FIRST_POSITION]
         )
         arch = arch + "|"
         arch = (
@@ -629,7 +629,7 @@ class Xark:
         data.append(self.getKernel())
         data.append(self.getArch())
         data.append(self.getMac())
-        data.insert(0, self.dayId)
+        data.insert(ROOT_POSITION, self.dayId)
 
         return tuple(data)
 
