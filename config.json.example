@@ -1,6 +1,0 @@
-{
-  "host": "127.0.0.1",
-  "user": "olpc",
-  "iface": "eth0",
-  "w_dir": "/home/user/"
-}

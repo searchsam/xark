@@ -21,8 +21,6 @@ import sys
 import time
 import json
 import sched
-import values
-import public
 import sqlite3
 import logging
 import datetime
@@ -200,7 +198,7 @@ class Conexion:
         self.conn.close()
 
 
-def parse(self, line):
+def parse(line):
     """Parse line and return a dictionary with variable value"""
     if line.lstrip().startswith("#"):
         return {}
@@ -232,6 +230,7 @@ class EnvFile(dict):
 
     def __init__(self, path, **kwargs):
         self.path = os.path.abspath(os.path.expanduser(path))
+
         if os.path.exists(self.path):
             for line in open(self.path).read().splitlines():
                 self.update(parse(line))
@@ -266,27 +265,13 @@ def get(path=".env"):
     if not path:
         path = ".env"
 
-    for path in values.get(path):
+    for path in [path]:
         if not os.path.exists(path):
             raise OSError("%s NOT EXISTS" % os.path.abspath(path))
 
         data.update(EnvFile(path))
 
     return data
-
-
-def load(path=".env"):
-    """set environment variables from .env file"""
-    if not path:
-        path = ".env"
-
-    for path in values.get(path):
-        path = os.path.abspath(os.path.expanduser(path))
-
-        if not os.path.exists(path):
-            raise OSError("%s NOT EXISTS" % path)
-
-        os.environ.update(get(path))
 
 
 class Xark:
@@ -823,12 +808,11 @@ if __name__ == "__main__":
     )
 
     try:
-        # Get the settings from config.json
-        with open(XO_CONFIG_FILE) as config_file:
-            config = json.load(config_file)
+        # Get the environment vars
+        env = get()
 
         # Kaibil Instance
-        xark = Xark(config["host"], config["user"], config["iface"], config["w_dir"])
+        xark = Xark(env["HOST"], env["USER"], env["IFACE"], env["W_DIR"])
 
         if getCurrentDayOfWeek() >= MONDAY and getCurrentDayOfWeek() <= FRIDAY:
             if getCurrentTime() >= START_DAY_TIME and getCurrentTime() <= END_DAY_TIME:
