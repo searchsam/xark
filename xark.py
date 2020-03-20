@@ -75,14 +75,6 @@ UPDATE_SYNC_STATUS = (
     "UPDATE xk_status set sync_status = ?, sync_date = ? WHERE date_print = ?"
 )
 
-# Logging setting
-logger = logging.getLogger(APP_NAME.lower())
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)-s - %(message)s")
-handler = logging.FileHandler(filename=APP_NAME.lower() + ".log", mode="a")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
-
 
 def getCurrentDayOfWeek(format=None):
     dayOfWeek = datetime.datetime.now()
@@ -299,7 +291,7 @@ class Xark:
         synchrome()
     """
 
-    def __init__(self, serverName, userName, networkIface, workingDir):
+    def __init__(self):
         # DB Connection class
         self.db = Conexion()
         # Get status day print (integer current date)
@@ -320,12 +312,7 @@ class Xark:
             self.dayId = self.getDailyId()
 
         # Directorio de metadata del Diario
-        self.journalDir = workingDir + ".sugar/default/datastore/"
-        # Indentificacion del servidor
-        self.serverName = serverName
-        self.userName = userName
-        self.networkIface = networkIface
-        self.workingDir = workingDir
+        self.journalDir = env["WORKING_DIRECTORY"] + ".sugar/default/datastore/"
         # Request Frequency Scheduler
         self.scheduler = sched.scheduler(time.time, time.sleep)
 
@@ -475,7 +462,7 @@ class Xark:
         """
         historyContent = ""
         activityList = subprocess.Popen(
-            "ls {}Activities/".format(self.workingDir),
+            "ls {}Activities/".format(env["WORKING_DIRECTORY"]),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
@@ -609,14 +596,14 @@ class Xark:
             str: MAC address
         """
         mac = subprocess.Popen(
-            "cat /sys/class/net/{}/address".format(self.networkIface),
+            "cat /sys/class/net/{}/address".format(env["IFACE"]),
             shell=True,
             stdout=subprocess.PIPE,
         ).stdout.readlines()
         if len(mac):
             return mac[ROOT_POSITION].strip().decode()
         else:
-            return mac
+            return ""
 
     def extracData(self):
         """Extract data from computer
@@ -692,9 +679,9 @@ class Xark:
         # Check if the IIAB is available
         requestUrl = (
             'curl -o /dev/null -w "%{http_code}\\n" -X POST '
-            + self.serverName
+            + env["XIAP_HOST"]
             + ' -d "user='
-            + self.userName
+            + env["XO_USER"]
             + "&client_id="
             + self.serialNumber
             + "&client_secret="
@@ -742,10 +729,10 @@ class Xark:
                 + ":"
                 + self.uuid
                 + ' -o /dev/null -w "%{http_code}\\n" -X POST '
-                + self.serverName
+                + env["XIAP_HOST"]
                 + "data -d "
                 + '"grant_type=password&username='
-                + self.userName
+                + env["XO_USER"]
                 + "&client="
                 + self.serialNumber
                 + '&password=valid&scope=profile&data={}"'.format(data)
@@ -785,6 +772,8 @@ def cath_Exception(tbExcept):
     # Excerpt code snippet.
     exceptCode = tbInfo.split(",")[SECOND_POSITION].strip()
 
+    logger.error("{}".format(sys.exc_info()))
+
     Conexion().set(
         INSERT_INTO_XK_EXCPTS,
         [
@@ -804,6 +793,16 @@ def cath_Exception(tbExcept):
 if __name__ == "__main__":
     """Main flow of execution."""
 
+    # Logging setting
+    logger = logging.getLogger(APP_NAME.lower())
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)-s - %(message)s"
+    )
+    handler = logging.FileHandler(filename=APP_NAME.lower() + ".log", mode="a")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+
     # Daily Start Log
     logger.info(
         "{} - start execution.".format(getCurrentDayOfWeek("%B %d %Y %A %H:%M:%S"))
@@ -814,9 +813,7 @@ if __name__ == "__main__":
         env = get()
 
         # Kaibil Instance
-        xark = Xark(
-            env["XIAP_HOST"], env["XO_USER"], env["IFACE"], env["WORKING_DIRECTORY"]
-        )
+        xark = Xark()
 
         if getCurrentDayOfWeek() >= MONDAY and getCurrentDayOfWeek() <= FRIDAY:
             if getCurrentTime() >= START_DAY_TIME and getCurrentTime() <= END_DAY_TIME:
