@@ -7,6 +7,9 @@ then
     while IFS='=' read -r key value; do
         ENV[$key]=$value
     done < ./.env
+else
+    echo "No ENV file not found."
+    exit 0
 fi
 
 # Crea la base datos para sqlite3 limpia
@@ -32,30 +35,17 @@ if [ -f ./xarkd.service ];
 then
     # Drop old log file
     rm ./xarkd.service
-    echo "[Unit]
-Description=Put kaibil to work
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=${ENV[WORKING_DIRECTORY]}
-ExecStart=/usr/bin/python ${ENV[WORKING_DIRECTORY]}.xark/xark.py
-KillMode=process
-
-[Install]
-WantedBy=multi-user.target" > xarkd.service
-else
-    echo "[Unit]
-Description=Put kaibil to work
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=${ENV[WORKING_DIRECTORY]}
-ExecStart=/usr/bin/python ${ENV[WORKING_DIRECTORY]}.xark/xark.py
-KillMode=process
-
-[Install]
-WantedBy=multi-user.target" > xarkd.service
 fi
+
+echo "[Unit]
+Description=Put kaibil to work
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python $(pwd)/xark.py
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target" > xarkd.service
 sudo mv xarkd.service /etc/systemd/system/.
