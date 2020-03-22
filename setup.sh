@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+# Leer el archivo .env con las variables de entorno.
+if [ -f ./.env ]
+then
+    declare -A ENV
+    while IFS='=' read -r key value; do
+        ENV[$key]=$value
+    done < ./.env
+fi
+
 # Crea la base datos para sqlite3 limpia
 if [ -f ./xark.db ];
 then
@@ -29,8 +38,8 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=.
-ExecStart=/usr/bin/python ./xark.py
+WorkingDirectory=${ENV[WORKING_DIRECTORY]}
+ExecStart=/usr/bin/python ${ENV[WORKING_DIRECTORY]}.xark/xark.py
 KillMode=process
 
 [Install]
@@ -42,10 +51,11 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=.
-ExecStart=/usr/bin/python ./xark.py
+WorkingDirectory=${ENV[WORKING_DIRECTORY]}
+ExecStart=/usr/bin/python ${ENV[WORKING_DIRECTORY]}.xark/xark.py
 KillMode=process
 
 [Install]
 WantedBy=multi-user.target" > xarkd.service
 fi
+sudo mv xarkd.service /etc/systemd/system/.
