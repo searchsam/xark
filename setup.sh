@@ -8,7 +8,7 @@ then
         ENV[$key]=$value
     done < ./.env
 else
-    echo "No ENV file not found."
+    echo "Environtment file not found."
     exit 0
 fi
 
@@ -48,4 +48,4 @@ KillMode=process
 
 [Install]
 WantedBy=multi-user.target" > xarkd.service
-sudo mv xarkd.service /etc/systemd/system/.
+sudo mv xarkd.service /usr/lib/systemd/user/
